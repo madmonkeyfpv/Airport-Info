@@ -1,0 +1,1948 @@
+title: Airport Information
+path: airport-info
+icon: mdi:airplane
+type: panel
+cards:
+  - type: custom:button-card
+    entity: sensor.kims_inbound_and_scheduled_arrivals
+    show_name: false
+    show_icon: false
+    show_state: false
+    show_label: false
+    update_timer: 30s
+    triggers_update:
+      - sensor.kims_inbound_and_scheduled_arrivals
+      - sensor.kims_scheduled_departures
+      - sensor.kims_recent_arrivals
+      - sensor.kims_recent_departures
+      - sensor.kims_active_notams
+      - sensor.metar_kims_temperature
+      - sensor.kims_r_3403a
+      - sensor.kims_r_3403a_start
+      - sensor.kims_r_3403a_end
+      - sensor.kims_r_3403b
+      - sensor.kims_r_3403b_start
+      - sensor.kims_r_3403b_end
+      - sensor.kims_jpg_a_moa
+      - sensor.kims_jpg_b_moa
+      - sensor.kims_jpg_c_moa
+      - sensor.kims_jpg_c_atcaa
+    tap_action:
+      action: none
+    hold_action:
+      action: none
+    double_tap_action:
+      action: none
+    styles:
+      card:
+        - position: fixed
+        - top: 0
+        - left: 0
+        - width: 100vw
+        - height: 100dvh
+        - max-width: none
+        - padding: 0
+        - margin: 0
+        - border: none
+        - border-radius: 0
+        - box-shadow: none
+        - background: '#08111e'
+        - overflow: hidden
+        - z-index: 1
+      grid:
+        - grid-template-areas: '"content"'
+        - grid-template-columns: minmax(0, 1fr)
+        - grid-template-rows: minmax(0, 1fr)
+      custom_fields:
+        content:
+          - width: 100%
+          - height: 100%
+          - min-width: 0
+          - min-height: 0
+          - overflow: hidden
+          - text-align: left
+    custom_fields:
+      content: |
+        [[[
+          const TZ = 'America/Indiana/Indianapolis';
+          const now = new Date();
+
+          const get = id => states[id];
+
+          const esc = v => String(v ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+          const valid = d =>
+            d instanceof Date &&
+            Number.isFinite(d.getTime());
+
+          const list = id => {
+            const flights = get(id)?.attributes?.flights;
+            return Array.isArray(flights) ? flights : [];
+          };
+
+          const field = (obj, keys) => {
+            for (const key of keys) {
+              const value = obj?.[key];
+              if (
+                value !== undefined &&
+                value !== null &&
+                value !== ''
+              ) {
+                if (typeof value === 'object') {
+                  return String(
+                    value.name ||
+                    value.code ||
+                    value.icao ||
+                    value.ident ||
+                    ''
+                  );
+                }
+                return String(value);
+              }
+            }
+            return '';
+          };
+
+          const fmt = (date, options) =>
+            new Intl.DateTimeFormat('en-US', {
+              timeZone: TZ,
+              ...options
+            }).format(date);
+
+          const localTime = date => fmt(date, {
+            hour: 'numeric',
+            minute: '2-digit'
+          });
+
+          const localDate = date => fmt(date, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+
+          const zuluTime = date =>
+            new Intl.DateTimeFormat('en-GB', {
+              timeZone: 'UTC',
+              hour: '2-digit',
+              minute: '2-digit',
+              hourCycle: 'h23'
+            }).format(date) + 'Z';
+
+          const zuluDate = date =>
+            new Intl.DateTimeFormat('en-US', {
+              timeZone: 'UTC',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            }).format(date);
+
+          const dateFrom = value => {
+            if (value === null || value === undefined || value === '') {
+              return null;
+            }
+
+            if (typeof value === 'number') {
+              const d = new Date(
+                value < 100000000000 ? value * 1000 : value
+              );
+              return valid(d) ? d : null;
+            }
+
+            const raw = String(value).trim();
+
+            if (/^\d{10,13}$/.test(raw)) {
+              const n = Number(raw);
+              const d = new Date(
+                raw.length === 10 ? n * 1000 : n
+              );
+              return valid(d) ? d : null;
+            }
+
+            if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
+              const d = new Date(raw);
+              return valid(d) ? d : null;
+            }
+
+            return null;
+          };
+
+          // ==========================================
+          // TEMPERATURE
+          // ==========================================
+
+          const tempEntity = get('sensor.metar_kims_temperature');
+          const tempRaw = tempEntity?.state;
+          const tempNumber = Number(tempRaw);
+          const tempUnit = String(
+            tempEntity?.attributes?.unit_of_measurement || ''
+          ).toLowerCase();
+
+          let temperature = '—';
+
+          if (
+            tempRaw !== undefined &&
+            tempRaw !== null &&
+            !['unknown', 'unavailable', ''].includes(
+              String(tempRaw).toLowerCase()
+            ) &&
+            Number.isFinite(tempNumber)
+          ) {
+            const fahrenheit =
+              tempUnit.includes('celsius') ||
+              tempUnit === '°c' ||
+              tempUnit === 'c'
+                ? tempNumber * 9 / 5 + 32
+                : tempNumber;
+
+            temperature = `${Math.round(fahrenheit)}°F`;
+          }
+
+          // ==========================================
+          // FLIGHT DATE AND TIME
+          // ==========================================
+
+          const flightTime = (flight, kind, historical = false) => {
+            const keys = kind === 'arrival'
+              ? [
+                  'actual_arrival',
+                  'estimated_arrival_time',
+                  'estimated_arrival',
+                  'arrival_time',
+                  'arrival',
+                  'eta',
+                  'scheduled_arrival'
+                ]
+              : [
+                  'actual_departure',
+                  'estimated_departure_time',
+                  'departure_time',
+                  'departure',
+                  'etd',
+                  'scheduled_departure'
+                ];
+
+            const raw = field(flight, keys);
+            if (!raw) return null;
+
+            const direct = dateFrom(raw);
+            if (direct) return direct;
+
+            const match = raw.match(
+              /^(\d{1,2}):(\d{2})\s*([ap])(?:m)?\s*(EST|EDT)?$/i
+            );
+
+            if (!match) return null;
+
+            let hour = Number(match[1]) % 12;
+            if (match[3].toLowerCase() === 'p') hour += 12;
+
+            const minute = Number(match[2]);
+            const zone = (match[4] || 'EST').toUpperCase();
+            const offset = zone === 'EDT' ? 4 : 5;
+
+            const flightDate = field(flight, [
+              'flight_date',
+              'date'
+            ]);
+
+            const dateBase = /^\d{4}-\d{2}-\d{2}$/.test(flightDate)
+              ? flightDate
+              : fmt(now, {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit'
+                });
+
+            const parts = dateBase.match(
+              /^(\d{4})-(\d{2})-(\d{2})$/
+            );
+
+            let base;
+
+            if (parts) {
+              base = Date.UTC(
+                Number(parts[1]),
+                Number(parts[2]) - 1,
+                Number(parts[3]),
+                hour + offset,
+                minute
+              );
+            } else {
+              const localParts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: TZ,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+              }).format(now).split('-');
+
+              base = Date.UTC(
+                Number(localParts[0]),
+                Number(localParts[1]) - 1,
+                Number(localParts[2]),
+                hour + offset,
+                minute
+              );
+            }
+
+            if (flightDate) return new Date(base);
+
+            const candidates = [-1, 0, 1].map(days =>
+              new Date(base + days * 86400000)
+            );
+
+            if (historical) {
+              return candidates
+                .filter(d => d.getTime() <= now.getTime() + 3600000)
+                .sort((a, b) => b - a)[0] || new Date(base);
+            }
+
+            return candidates.sort(
+              (a, b) =>
+                Math.abs(a - now) - Math.abs(b - now)
+            )[0];
+          };
+
+          const tail = flight => field(flight, [
+            'registration',
+            'tail',
+            'tail_number',
+            'ident',
+            'aircraft',
+            'flight'
+          ]) || 'UNKNOWN';
+
+          const aircraftType = flight => field(flight, [
+            'aircraft_description',
+            'type',
+            'aircraft_type',
+            'aircraftType'
+          ]) || 'AIRCRAFT TYPE UNKNOWN';
+
+          const airport = (flight, arrival) =>
+            field(
+              flight,
+              arrival
+                ? [
+                    'origin',
+                    'origin_airport',
+                    'departure_airport',
+                    'from',
+                    'airport'
+                  ]
+                : [
+                    'destination',
+                    'destination_airport',
+                    'arrival_airport',
+                    'to',
+                    'airport'
+                  ]
+            );
+
+          const flightStatus = flight =>
+            field(flight, [
+              'flight_status',
+              'status',
+              'state'
+            ]).toUpperCase();
+
+          const minutesRemaining = date => {
+            if (!valid(date)) return null;
+
+            return Math.max(
+              0,
+              Math.ceil((date - now) / 60000)
+            );
+          };
+
+          const remainingText = minutes => {
+            if (minutes === null) return '';
+
+            if (minutes === 0) return 'DUE NOW';
+
+            if (minutes < 60) {
+              return `${minutes} MIN REMAINING`;
+            }
+
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+
+            return `${hours}H ${String(mins).padStart(2, '0')}M REMAINING`;
+          };
+
+          // ==========================================
+          // ARRIVALS AND DEPARTURES
+          // ==========================================
+
+          const recentArrivals = list(
+            'sensor.kims_recent_arrivals'
+          );
+
+          const recentDepartures = list(
+            'sensor.kims_recent_departures'
+          );
+
+          const recentArrivalTails = new Set(
+            recentArrivals.map(f => tail(f).toUpperCase())
+          );
+
+          const arrivals = list(
+            'sensor.kims_inbound_and_scheduled_arrivals'
+          ).filter(f => {
+            const status = flightStatus(f);
+            return (
+              !recentArrivalTails.has(tail(f).toUpperCase()) &&
+              !status.includes('ARRIVED') &&
+              !status.includes('LANDED') &&
+              !status.includes('CANCEL')
+            );
+          }).sort((a, b) =>
+            (flightTime(a, 'arrival')?.getTime() || Infinity) -
+            (flightTime(b, 'arrival')?.getTime() || Infinity)
+          );
+
+          const departures = list(
+            'sensor.kims_scheduled_departures'
+          ).filter(f => {
+            const status = flightStatus(f);
+            return (
+              !status.includes('DEPARTED') &&
+              !status.includes('AIRBORNE') &&
+              !status.includes('CANCEL')
+            );
+          }).sort((a, b) =>
+            (flightTime(a, 'departure')?.getTime() || Infinity) -
+            (flightTime(b, 'departure')?.getTime() || Infinity)
+          );
+
+          const renderArrival = flight => {
+            const eta = flightTime(flight, 'arrival');
+            const remaining = minutesRemaining(eta);
+            const status = flightStatus(flight);
+
+            const progress = Number(
+              flight.progress_percent ??
+              flight.progress ??
+              NaN
+            );
+
+            const enroute =
+              status.includes('ENROUTE') ||
+              status.includes('EN_ROUTE') ||
+              status.includes('EN ROUTE') ||
+              status.includes('AIRBORNE') ||
+              (
+                Number.isFinite(progress) &&
+                progress > 0 &&
+                progress < 100
+              );
+
+            const urgency =
+              enroute && remaining !== null && remaining <= 30
+                ? 'urgent'
+                : enroute && remaining !== null && remaining <= 60
+                  ? 'soon'
+                  : enroute
+                    ? 'enroute'
+                    : 'scheduled';
+
+            const label = enroute ? 'ENROUTE' : 'SCHEDULED';
+
+            const origin = airport(flight, true);
+
+            const progressHtml =
+              enroute && Number.isFinite(progress)
+                ? `
+                  <div class="progress-track">
+                    <div class="progress-fill"
+                         style="width:${Math.max(0, Math.min(100, progress))}%">
+                    </div>
+                  </div>
+                `
+                : '';
+
+            return `
+              <div class="flight-card ${urgency}">
+                <div class="flight-top">
+                  <div class="flight-left">
+                    <div class="flight-tail">${esc(tail(flight))}</div>
+                    <div class="flight-type">
+                      ${esc(aircraftType(flight))}
+                    </div>
+                    <div class="flight-airport">
+                      FROM ${esc(origin || 'UNKNOWN')}
+                    </div>
+                  </div>
+                  <div class="flight-right">
+                    <div class="flight-clock">
+                      ${eta ? esc(localTime(eta)) : '—'}
+                    </div>
+                    <div class="flight-state">${label}</div>
+                    ${
+                      enroute && remaining !== null
+                        ? `<div class="flight-remaining">${esc(remainingText(remaining))}</div>`
+                        : ''
+                    }
+                  </div>
+                </div>
+                ${progressHtml}
+              </div>
+            `;
+          };
+
+          const renderDeparture = flight => {
+            const etd = flightTime(flight, 'departure');
+            const destination = airport(flight, false);
+
+            return `
+              <div class="flight-card departure">
+                <div class="flight-top">
+                  <div class="flight-left">
+                    <div class="flight-tail">${esc(tail(flight))}</div>
+                    <div class="flight-type">
+                      ${esc(aircraftType(flight))}
+                    </div>
+                    <div class="flight-airport">
+                      TO ${esc(destination || 'UNKNOWN')}
+                    </div>
+                  </div>
+                  <div class="flight-right">
+                    <div class="flight-clock">
+                      ${etd ? esc(localTime(etd)) : '—'}
+                    </div>
+                    <div class="flight-state">SCHEDULED</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          };
+
+          const emptyFlight = `
+            <div class="flight-empty">
+              <div class="empty-icon">✈</div>
+              <div class="empty-main">
+                NO FLIGHT PLANS SCHEDULED
+              </div>
+            </div>
+          `;
+
+          const arrivalsHtml = arrivals.length
+            ? arrivals.map(renderArrival).join('')
+            : emptyFlight;
+
+          const departuresHtml = departures.length
+            ? departures.map(renderDeparture).join('')
+            : emptyFlight;
+
+          // ==========================================
+          // LATEST ACTIVITY
+          // ==========================================
+
+          const activityOffsets = {
+            EST: -5, EDT: -4, CST: -6, CDT: -5,
+            MST: -7, MDT: -6, PST: -8, PDT: -7,
+            AKST: -9, AKDT: -8, HST: -10
+          };
+
+          const activityTimestamp = (flight, kind) => {
+            if (!flight) return 0;
+            const raw = kind === 'arrival' ? flight.arrival : flight.departure;
+            const match = String(raw || '').match(/(\d{1,2}):(\d{2})\s*([ap])(?:m)?\s*([A-Z]{2,5})/i);
+            const history = String(flight.flight_id || flight.flight_url || '')
+              .match(/\/history\/(\d{4})(\d{2})(\d{2})\/(\d{2})(\d{2})Z/);
+            const historyUTC = history ? Date.UTC(
+              +history[1], +history[2] - 1, +history[3], +history[4], +history[5]
+            ) : 0;
+
+            // FlightAware history timestamp is the actual UTC departure.
+            // Use it for departures, even when flight_date is missing.
+            if (kind === 'departure' && historyUTC) {
+              const age = now.getTime() - historyUTC;
+              return age >= 0 && age <= 86400000 ? historyUTC : 0;
+            }
+            if (!match) return 0;
+            const offset = activityOffsets[match[4].toUpperCase()];
+            if (offset === undefined) return 0;
+            const hour = (+match[1] % 12) + (match[3].toLowerCase() === 'p' ? 12 : 0);
+            const minute = +match[2];
+            const date = String(flight.flight_date || '');
+            const base = /^\d{4}-\d{2}-\d{2}$/.test(date)
+              ? date.split('-').map(Number)
+              : history
+                ? [+history[1], +history[2], +history[3]]
+                : null;
+            if (!base) return 0;
+            const t = Date.UTC(base[0], base[1] - 1, base[2], hour - offset, minute);
+            const candidates = [t - 86400000, t, t + 86400000]
+              .filter(x => now.getTime() - x >= 0 && now.getTime() - x <= 86400000);
+            if (historyUTC && kind === 'arrival') {
+              // Arrival should occur after the departure encoded in history.
+              const afterDeparture = candidates.filter(x => x >= historyUTC - 300000);
+              return afterDeparture.sort((x, y) => x - y)[0] || 0;
+            }
+            // Without a history timestamp, trust the reported flight_date.
+            return candidates.includes(t) ? t : 0;
+          };
+
+          const latestFlight = (flights, kind) =>
+            flights.map(f => ({ flight: f, timestamp: activityTimestamp(f, kind) }))
+              .filter(f => f.timestamp > 0)
+              .sort((a, b) => b.timestamp - a.timestamp)[0] || null;
+
+          const latestArrivalRecord = latestFlight(recentArrivals, 'arrival');
+          const latestDepartureRecord = latestFlight(recentDepartures, 'departure');
+          const latestArrival = latestArrivalRecord?.flight || null;
+          const latestDeparture = latestDepartureRecord?.flight || null;
+
+          const renderActivity = (flight, arrival) => {
+            const kind = arrival ? 'arrival' : 'departure';
+            const icon = arrival ? 'mdi:airplane-landing' : 'mdi:airplane-takeoff';
+            const label = arrival ? 'LAST ARRIVAL' : 'LAST DEPARTURE';
+            const status = arrival ? 'LANDED' : 'DEPARTED';
+
+            if (!flight) {
+              return `
+                <div class="activity-card ${kind}">
+                  <div class="activity-label">
+                    <span>${label}</span><ha-icon icon="${icon}"></ha-icon>
+                  </div>
+                  <div class="activity-empty">NO RECENT ACTIVITY</div>
+                </div>
+              `;
+            }
+
+            const timestamp = activityTimestamp(flight, kind);
+            const time = timestamp ? new Date(timestamp) : null;
+            const code = airport(flight, arrival);
+            const usableCode = code && code !== 'UNKNOWN' ? code : '';
+            const airportName = field(flight, [
+              'airport', 'airport_name', 'origin_name', 'destination_name'
+            ]).replace(/\s*\(\s*[A-Z0-9]{3,4}\s*\)\s*$/, '').trim();
+            const showName = airportName && airportName.toUpperCase() !== String(usableCode).toUpperCase();
+            const aircraftLabel = field(flight, ['aircraft_description', 'type', 'aircraft_type']) || 'TYPE PENDING';
+            const identLabel = field(flight, ['aircraft', 'registration', 'tail', 'ident']) || 'IDENT PENDING';
+            const pendingLocation = arrival ? 'Awaiting origin' : 'Awaiting destination';
+
+            return `
+              <div class="activity-card ${kind}">
+                <div class="activity-label">
+                  <span>${label}</span>
+                  <ha-icon icon="${icon}"></ha-icon>
+                </div>
+                <div class="activity-tail">${esc(identLabel)}</div>
+                <div class="activity-type">${esc(aircraftLabel)}</div>
+                <div class="activity-location">
+                  <div class="activity-airport-code">${arrival ? 'FROM' : 'TO'} ${esc(usableCode || '—')}</div>
+                  <div class="activity-airport-name">${showName ? esc(airportName) : `<span class="activity-pending">${esc(pendingLocation)}</span>`}</div>
+                </div>
+                <div class="activity-bottom">
+                  <div class="activity-time">${time ? esc(localTime(time)) : 'TIME PENDING'}</div>
+                  <div class="activity-status"><ha-icon icon="mdi:check-circle"></ha-icon>${status}</div>
+                  <div class="activity-date">${time ? esc(localDate(time)) : ''}</div>
+                </div>
+              </div>
+            `;
+          };
+
+          // ==========================================
+          // NOTAMS - COMPACT INTERPRETED CARDS
+          // ==========================================
+
+          const rawNotams =
+            get('sensor.kims_active_notams')?.attributes?.results;
+
+          const notices = Array.isArray(rawNotams)
+            ? rawNotams.filter(n => {
+                const c = n?.category || {};
+                const code = String(c.code || c.label || '').toUpperCase();
+                const message = String(n?.text || '').trim().toUpperCase();
+                return code !== 'OBSTACLE' && !message.startsWith('OBST');
+              })
+            : [];
+
+          const notamKind = text => {
+            const t = text.toUpperCase();
+            if (/FICON|RWYCC|BRAKING ACTION/.test(t)) return 'ficon';
+            if (/\b(?:100LL|JET[ -]?A|AVGAS|FUEL)\b/.test(t)) return 'fuel';
+            if (/MALSF|MALSR|PAPI|REIL|\bLGT\b|LIGHTING|\bHIRL\b|\bMIRL\b/.test(t)) return 'lighting';
+            if (/\b(?:RWY|TWY)\b/.test(t) && /CLSD|CLOSED/.test(t)) return 'closure';
+            return 'general';
+          };
+
+          const notamPriority = n => {
+            const t = String(n.text || '').toUpperCase();
+            if (/\bRWY\b/.test(t) && /CLSD|CLOSED/.test(t)) return 0;
+            if (notamKind(t) === 'ficon') return 1;
+            if (notamKind(t) === 'fuel') return 2;
+            if (notamKind(t) === 'lighting') return 3;
+            if (/\bTWY\b/.test(t)) return 4;
+            return 5;
+          };
+
+          notices.sort((a, b) => notamPriority(a) - notamPriority(b));
+
+          const rwyccNames = {
+            6: 'DRY', 5: 'GOOD', 4: 'GOOD–MEDIUM',
+            3: 'MEDIUM', 2: 'MEDIUM–POOR',
+            1: 'POOR', 0: 'LESS THAN POOR'
+          };
+          const rwyccTone = code =>
+            code >= 5 ? 'good' : code >= 3 ? 'medium' :
+            code === 2 ? 'caution' : 'poor';
+
+          const notamHtml = notices.length
+            ? notices.map(n => {
+                const rawText = String(n.text || '').trim();
+                const t = rawText.toUpperCase();
+                const kind = notamKind(rawText);
+                const category = n.category || {};
+                const id = field(n, ['number', 'notam_number', 'id', 'notam_id']);
+                const idText = id ? esc(id) + ' · ' : '';
+                const start = dateFrom(n.effective_start || n.start_date || n.start);
+                const end = dateFrom(n.effective_end || n.end_date || n.end);
+                const dateRow = (label, d) => d
+                  ? `<div>${label}: ${esc(localDate(d))} ${esc(localTime(d))} LOCAL · ${esc(zuluDate(d))} ${esc(zuluTime(d))}</div>`
+                  : '';
+                const dates = start || end
+                  ? `<div class="notam-dates">${dateRow('START', start)}${dateRow('END', end)}</div>`
+                  : '';
+
+                let title = 'AIRPORT NOTICE';
+                let detail = '';
+                let condition = '';
+                const runway = t.match(/\bRWY\s*(\d{1,2}[LRC]?(?:\/\d{1,2}[LRC]?)?)\b/);
+                const taxiway = t.match(/\bTWY\s*([A-Z0-9]+)\b/);
+                const where = runway ? 'RWY ' + runway[1] :
+                  taxiway ? 'TWY ' + taxiway[1] : 'AIRFIELD';
+
+                if (kind === 'ficon') {
+                  title = where + ' — RUNWAY CONDITIONS';
+                  const match = t.match(/\bRWYCC\s*([0-6])\s*\/\s*([0-6])\s*\/\s*([0-6])\b/)
+                    || t.match(/\b([0-6])\s*\/\s*([0-6])\s*\/\s*([0-6])\s+(?:\d{2,3}\s*PCT|\bDRY\b|\bWET\b|\bSNOW\b|\bICE\b)/);
+                  if (match) {
+                    const codes = [Number(match[1]), Number(match[2]), Number(match[3])];
+                    condition = `<div class="notam-condition-title">RWYCC ASSESSMENT · NOT PILOT BRAKING REPORT</div>
+                      <div class="notam-thirds">${codes.map((code, i) => `
+                        <div class="notam-third ${rwyccTone(code)}">
+                          <div>${['FIRST','MIDDLE','LAST'][i]} THIRD</div>
+                          <strong>${esc(rwyccNames[code])}</strong>
+                          <span>RWYCC ${code}</span>
+                        </div>`).join('')}</div>`;
+                  }
+                  const braking = t.match(/\bBRAKING ACTION\s+(GOOD(?:\s+TO\s+MEDIUM)?|MEDIUM(?:\s+TO\s+POOR)?|POOR|NIL)\b/);
+                  if (braking) {
+                    condition += `<div class="notam-pilot-braking">REPORTED BRAKING ACTION: ${esc(braking[1])}</div>`;
+                  }
+                  const contaminants = [...new Set((t.match(/\b(?:WET SNOW|DRY SNOW|SLUSH|COMPACTED SNOW|SNOW|ICE|WET|DRY)\b/g) || []))];
+                  if (contaminants.length) detail = contaminants.slice(0, 4).join(' · ');
+                } else if (kind === 'fuel') {
+                  const grade = /100LL|AVGAS/.test(t) ? '100LL' : /JET[ -]?A/.test(t) ? 'JET A' : 'FUEL';
+                  const selfServe = /SELF[ -]?SERV/.test(t);
+                  const outage = /U\/S|OUT OF SERVICE|UNAVBL|UNAVAILABLE|NOT AVBL/.test(t);
+                  title = grade + (selfServe ? ' SELF-SERVICE' : ' FUEL') +
+                    (outage ? ' — UNAVAILABLE' : ' — NOTICE');
+                } else if (kind === 'lighting') {
+                  const light = (t.match(/MALSF|MALSR|PAPI|REIL|HIRL|MIRL|LGT/) || ['LIGHTING'])[0];
+                  title = (runway ? where + ' — ' : '') + light +
+                    (/U\/S|OUT OF SERVICE|UNAVBL|UNAVAILABLE/.test(t) ? ' OUT OF SERVICE' : ' NOTICE');
+                } else if (kind === 'closure') {
+                  title = where + ' — CLOSED';
+                } else {
+                  title = String(category.label || category.code || 'AIRPORT NOTICE').toUpperCase();
+                }
+
+                return `<div class="notam-card ${kind}">
+                  <div class="notam-topline"><span>${idText}${esc(kind === 'ficon' ? 'FICON / SNOW' : kind.toUpperCase())}</span><span class="notam-active">ACTIVE</span></div>
+                  <div class="notam-title">${esc(title)}</div>
+                  ${condition}
+                  ${detail ? `<div class="notam-detail">${esc(detail)}</div>` : ''}
+                  <div class="notam-original">${esc(rawText)}</div>
+                  ${dates}
+                </div>`;
+              }).join('')
+            : `<div class="notam-empty">NO OPERATIONAL NOTAMS REPORTED</div>`;
+
+          // ==========================================
+          // JPG RESTRICTED AIRSPACE
+          // ==========================================
+
+          const restrictedAreas = [
+            ['R-3403A', 'sensor.kims_r_3403a'],
+            ['R-3403B', 'sensor.kims_r_3403b']
+          ];
+
+          const restrictedStatus = id => {
+            const s = String(
+              get(id)?.state || 'unknown'
+            ).trim().toUpperCase();
+
+            if (s === 'ACTIVE' || s === 'HOT') {
+              return 'active';
+            }
+
+            if (
+              s === 'SCHEDULED' ||
+              s === 'SCHEDULE REPORTED'
+            ) {
+              return 'scheduled';
+            }
+
+            if (
+              s === 'NOT SCHEDULED' ||
+              s === 'COLD' ||
+              s === 'INACTIVE'
+            ) {
+              return 'cold';
+            }
+
+            return 'unknown';
+          };
+
+          const scheduleDate = id => {
+            const raw = String(
+              get(id)?.state || ''
+            ).trim();
+
+            if (
+              !raw ||
+              ['unknown', 'unavailable'].includes(raw.toLowerCase())
+            ) return null;
+
+            const match = raw.match(
+              /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/
+            );
+
+            if (match) {
+              const d = new Date(Date.UTC(
+                Number(match[3]),
+                Number(match[1]) - 1,
+                Number(match[2]),
+                Number(match[4]),
+                Number(match[5])
+              ));
+
+              return valid(d) ? d : null;
+            }
+
+            return dateFrom(raw);
+          };
+
+          const renderScheduleCell = (label, date) => {
+            if (!date) {
+              return `
+                <div class="schedule-cell">
+                  <div class="schedule-label">${label}</div>
+                  <div class="schedule-unavailable">
+                    NOT REPORTED
+                  </div>
+                </div>
+              `;
+            }
+
+            return `
+              <div class="schedule-cell">
+                <div class="schedule-label">${label}</div>
+                <div class="schedule-time">
+                  ${esc(localTime(date))}
+                </div>
+                <div class="schedule-date">
+                  ${esc(localDate(date))}
+                </div>
+                <div class="schedule-zulu">
+                  ${esc(zuluDate(date))}
+                  ${esc(zuluTime(date))}
+                </div>
+              </div>
+            `;
+          };
+
+          const renderRestricted = ([name, id]) => {
+            const status = restrictedStatus(id);
+
+            const start = scheduleDate(id + '_start');
+            const end = scheduleDate(id + '_end');
+
+            const label =
+              status === 'active'
+                ? 'ACTIVE'
+                : status === 'scheduled'
+                  ? 'SCHEDULED'
+                  : status === 'cold'
+                    ? 'COLD'
+                    : 'UNKNOWN';
+
+            const subtitle =
+              status === 'active'
+                ? 'RESTRICTED AIRSPACE ACTIVE'
+                : status === 'scheduled'
+                  ? 'UPCOMING ACTIVATION'
+                  : status === 'cold'
+                    ? 'NOT SCHEDULED'
+                    : 'STATUS UNAVAILABLE';
+
+            const schedule =
+              status === 'active' ||
+              status === 'scheduled'
+                ? `
+                  <div class="schedule-grid">
+                    ${renderScheduleCell('START', start)}
+                    ${renderScheduleCell('END', end)}
+                  </div>
+                `
+                : `
+                  <div class="restricted-idle">
+                    ${
+                      status === 'cold'
+                        ? 'NO ACTIVITY REPORTED'
+                        : 'AWAITING FAA STATUS'
+                    }
+                  </div>
+                `;
+
+            return `
+              <div class="restricted-card ${status}">
+                <div class="restricted-name">
+                  ${esc(name)}
+                </div>
+
+                <div class="restricted-center">
+                  <div class="restricted-state">
+                    ${label}
+                  </div>
+                  <div class="restricted-subtitle">
+                    ${subtitle}
+                  </div>
+                </div>
+
+                <div class="restricted-bottom">
+                  ${schedule}
+                </div>
+              </div>
+            `;
+          };
+
+          const restrictedHtml =
+            restrictedAreas.map(renderRestricted).join('');
+
+          // ==========================================
+          // COMBINED JPG MOAs / ATCAA
+          // ==========================================
+
+          const moaIds = [
+            'sensor.kims_jpg_a_moa',
+            'sensor.kims_jpg_b_moa',
+            'sensor.kims_jpg_c_moa',
+            'sensor.kims_jpg_c_atcaa'
+          ];
+
+          const moaStates = moaIds.map(id =>
+            String(
+              get(id)?.state || 'unknown'
+            ).trim().toUpperCase()
+          );
+
+          const moaHot = moaStates.some(s =>
+            s === 'ACTIVE' || s === 'HOT'
+          );
+
+          const moaScheduled = moaStates.some(s =>
+            s === 'SCHEDULED' ||
+            s === 'SCHEDULE REPORTED'
+          );
+
+          const moaUnknown = moaStates.some(s =>
+            ![
+              'ACTIVE',
+              'HOT',
+              'SCHEDULED',
+              'SCHEDULE REPORTED',
+              'COLD',
+              'NOT SCHEDULED',
+              'INACTIVE'
+            ].includes(s)
+          );
+
+          const moaStatus = moaHot
+            ? 'hot'
+            : moaScheduled
+              ? 'scheduled'
+              : moaUnknown
+                ? 'unknown'
+                : 'cold';
+
+          const moaLabel =
+            moaStatus === 'hot'
+              ? 'HOT'
+              : moaStatus === 'scheduled'
+                ? 'SCHEDULED'
+                : moaStatus === 'unknown'
+                  ? 'UNKNOWN'
+                  : 'COLD';
+
+          // ==========================================
+          // COMPLETE DASHBOARD
+          // ==========================================
+
+          return `
+            <div class="airport-screen">
+
+              <div class="airport-header">
+                <div class="airport-brand">
+                  <div class="airport-title">
+                    MADISON REGIONAL AIRPORT
+                  </div>
+                  <div class="airport-subtitle">
+                    KIMS / IMS · AIRPORT INFORMATION
+                  </div>
+                </div>
+
+                <div class="airport-temperature">
+                  ${esc(temperature)}
+                </div>
+              </div>
+
+              <div class="airport-layout">
+
+                <div class="top-row">
+
+                  <section class="info-panel">
+                    <div class="panel-header">
+                      <span>LIVE & EXPECTED ARRIVALS</span>
+                      <span class="panel-count">
+                        ${arrivals.length} AIRCRAFT
+                      </span>
+                    </div>
+
+                    <div class="panel-content flight-content">
+                      ${arrivalsHtml}
+                    </div>
+                  </section>
+
+                  <section class="info-panel">
+                    <div class="panel-header">
+                      <span>EXPECTED DEPARTURES</span>
+                      <span class="panel-count">
+                        ${departures.length} AIRCRAFT
+                      </span>
+                    </div>
+
+                    <div class="panel-content flight-content">
+                      ${departuresHtml}
+                    </div>
+                  </section>
+
+                </div>
+
+                <div class="bottom-row">
+
+                  <section class="info-panel">
+                    <div class="panel-header">
+                      <span>KIMS NOTAMS</span>
+                      <span class="panel-count">
+                        ${notices.length}
+                      </span>
+                    </div>
+
+                    <div class="panel-content notam-content">
+                      <div class="notam-list">
+                        ${notamHtml}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="info-panel">
+                    <div class="panel-header">
+                      <span>LATEST ACTIVITY</span>
+                    </div>
+
+                    <div class="panel-content activity-content">
+                      <div class="activity-grid">
+                        ${renderActivity(latestArrival, true)}
+                        ${renderActivity(latestDeparture, false)}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="info-panel">
+                    <div class="panel-header">
+                      <span>JPG AIRSPACE</span>
+                    </div>
+
+                    <div class="panel-content airspace-content">
+
+                      <div class="restricted-heading">
+                        RESTRICTED AIRSPACE
+                      </div>
+
+                      <div class="restricted-grid">
+                        ${restrictedHtml}
+                      </div>
+
+                      <div class="moa-combined ${moaStatus}">
+                        <span class="moa-combined-name">
+                          JPG MOAs / ATCAA
+                        </span>
+                        <span class="moa-combined-state">
+                          ${moaLabel}
+                        </span>
+                      </div>
+
+                    </div>
+                  </section>
+
+                </div>
+
+              </div>
+            </div>
+          `;
+        ]]]
+    extra_styles: |
+      /* ======================================
+         FULL SCREEN
+         ====================================== */
+
+      .airport-screen,
+      .airport-screen * {
+        box-sizing: border-box;
+      }
+
+      .airport-screen {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #08111e;
+        color: #f1f5fa;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      /* ======================================
+         HEADER
+         ====================================== */
+
+      .airport-header {
+        flex: 0 0 78px;
+        min-height: 0;
+        padding: 12px 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        border-bottom: 2px solid #344b62;
+        background: #101c2b;
+      }
+
+      .airport-brand {
+        min-width: 0;
+      }
+
+      .airport-title {
+        font-size: clamp(23px, 2.2vw, 38px);
+        font-weight: 900;
+        letter-spacing: 1px;
+        line-height: 1.1;
+        color: #ffffff;
+      }
+
+      .airport-subtitle {
+        margin-top: 5px;
+        font-size: clamp(12px, 1vw, 17px);
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        color: #a9bfd4;
+      }
+
+      .airport-temperature {
+        flex: 0 0 auto;
+        font-size: clamp(32px, 3vw, 52px);
+        font-weight: 900;
+        color: #ffffff;
+        white-space: nowrap;
+      }
+
+      /* ======================================
+         MAIN GRID
+         ====================================== */
+
+      .airport-layout {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 12px;
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 12px;
+        overflow: hidden;
+      }
+
+      .top-row {
+        min-height: 0;
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .bottom-row {
+        min-height: 0;
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      /* ======================================
+         SHARED PANELS
+         ====================================== */
+
+      .info-panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        min-width: 0;
+        overflow: hidden;
+        background: #142234;
+        border: 2px solid #3a5067;
+        border-radius: 12px;
+      }
+
+      .panel-header {
+        flex: 0 0 55px;
+        min-height: 0;
+        padding: 0 17px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: #1c3045;
+        border-bottom: 1px solid #3a5067;
+        font-size: clamp(14px, 1.18vw, 21px);
+        font-weight: 900;
+        letter-spacing: 0.4px;
+        color: #ffffff;
+      }
+
+      .panel-header > span:first-child {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .panel-count {
+        flex: 0 0 auto;
+        font-size: clamp(11px, 0.9vw, 15px);
+        color: #b9cce0;
+        white-space: nowrap;
+      }
+
+      .panel-content {
+        flex: 1 1 auto;
+        min-height: 0;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      /* ======================================
+         FLIGHT PANELS
+         ====================================== */
+
+      .flight-content {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #536a80 transparent;
+      }
+
+      .flight-card {
+        flex: 0 0 auto;
+        min-width: 0;
+        padding: 15px 17px;
+        border-radius: 9px;
+        border: 1px solid #537087;
+        border-left: 5px solid #45b7df;
+        background: #24364a;
+      }
+
+      .flight-card.enroute {
+        border-left-color: #e3c052;
+      }
+
+      .flight-card.soon {
+        border-left-color: #f0a34c;
+      }
+
+      .flight-card.urgent {
+        border-left-color: #f16b68;
+      }
+
+      .flight-card.departure {
+        border-left-color: #65a9d8;
+      }
+
+      .flight-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .flight-left {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .flight-right {
+        flex: 0 0 auto;
+        min-width: 100px;
+        text-align: right;
+      }
+
+      .flight-tail {
+        font-size: clamp(22px, 2vw, 34px);
+        font-weight: 900;
+        line-height: 1.15;
+        color: #ffffff;
+        overflow-wrap: anywhere;
+      }
+
+      .flight-type {
+        margin-top: 5px;
+        font-size: clamp(13px, 1.12vw, 19px);
+        line-height: 1.3;
+        color: #dce7f1;
+        overflow-wrap: anywhere;
+      }
+
+      .flight-airport {
+        margin-top: 8px;
+        font-size: clamp(12px, 1vw, 17px);
+        font-weight: 700;
+        color: #a9c2d8;
+        overflow-wrap: anywhere;
+      }
+
+      .flight-clock {
+        font-size: clamp(21px, 1.9vw, 33px);
+        font-weight: 900;
+        white-space: nowrap;
+        color: #ffffff;
+      }
+
+      .flight-state {
+        margin-top: 7px;
+        font-size: clamp(11px, 0.9vw, 15px);
+        font-weight: 900;
+        color: #a9d4f0;
+      }
+
+      .flight-remaining {
+        margin-top: 8px;
+        font-size: clamp(11px, 0.95vw, 16px);
+        font-weight: 800;
+        color: #f2cb6b;
+      }
+
+      .progress-track {
+        height: 7px;
+        margin-top: 13px;
+        overflow: hidden;
+        border-radius: 10px;
+        background: #0e1c2a;
+      }
+
+      .progress-fill {
+        height: 100%;
+        border-radius: 10px;
+        background: #57b5dc;
+      }
+
+      /* EMPTY FLIGHT STATE */
+
+      .flight-empty {
+        flex: 1 1 auto;
+        min-height: 100px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        text-align: center;
+        color: #9bd9b4;
+      }
+
+      .empty-icon {
+        font-size: clamp(35px, 4vw, 65px);
+        line-height: 1;
+        opacity: 0.7;
+      }
+
+      .empty-main {
+        font-size: clamp(17px, 1.5vw, 26px);
+        font-weight: 900;
+        letter-spacing: 0.7px;
+        line-height: 1.3;
+      }
+
+      /* ======================================
+         LATEST ACTIVITY
+         ====================================== */
+
+      .activity-content {
+        padding: 12px;
+      }
+
+      .activity-grid {
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .activity-card {
+        min-width: 0;
+        min-height: 0;
+        padding: 13px;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        overflow: hidden;
+        border-radius: 9px;
+        background: #243246;
+        border: 1px solid #4b6075;
+      }
+
+      .activity-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        font-size: clamp(10px, 0.85vw, 15px);
+        font-weight: 900;
+        letter-spacing: 0.4px;
+        color: #b7c8d9;
+      }
+
+      .activity-label ha-icon {
+        --mdc-icon-size: 27px;
+        flex: 0 0 auto;
+      }
+
+      .activity-card.arrival .activity-label ha-icon,
+      .activity-card.arrival .activity-status { color: #86efac; }
+      .activity-card.departure .activity-label ha-icon,
+      .activity-card.departure .activity-status { color: #7dd3fc; }
+
+      .activity-tail {
+        font-size: clamp(23px, 2vw, 34px);
+        font-weight: 900;
+        color: #ffffff;
+        line-height: 1.1;
+        overflow-wrap: anywhere;
+      }
+
+      .activity-type {
+        font-size: clamp(14px, 1.2vw, 21px);
+        font-weight: 800;
+        color: #ffffff;
+        line-height: 1.3;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
+        min-width: 0;
+      }
+
+      .activity-location {
+        font-size: clamp(12px, 0.95vw, 16px);
+        font-weight: 700;
+        line-height: 1.35;
+        color: #a9c3dc;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
+        min-width: 0;
+      }
+
+      .activity-airport-code { font-weight: 800; }
+      .activity-pending { color: #a9b9c9; font-style: italic; font-weight: 500; }
+      .activity-airport-name {
+        margin-top: 3px;
+        color: #ffffff;
+        font-size: clamp(11px, 0.9vw, 15px);
+        font-weight: 600;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+      }
+      .activity-status {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: clamp(11px, 0.85vw, 14px);
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
+      }
+      .activity-status ha-icon { --mdc-icon-size: 15px; }
+
+      .activity-bottom {
+        margin-top: auto;
+        padding-top: 10px;
+        border-top: 1px solid #41556a;
+      }
+
+      .activity-time {
+        font-size: clamp(19px, 1.6vw, 28px);
+        font-weight: 900;
+        color: #ffffff;
+      }
+
+      .activity-date {
+        margin-top: 3px;
+        font-size: clamp(11px, 0.85vw, 15px);
+        color: #b4c7d8;
+      }
+
+      .activity-empty {
+        margin: auto 0;
+        font-size: 13px;
+        font-weight: 800;
+        text-align: center;
+        color: #9fb3c7;
+      }
+
+      /* ======================================
+         NOTAMS AND FICON
+          ====================================== */
+
+      .notam-content { overflow: hidden; padding: 10px; }
+      .notam-list {
+        width: 100%; height: 100%; min-height: 0;
+        overflow-y: auto; overflow-x: hidden;
+        scrollbar-width: thin; scrollbar-color: #65798b transparent;
+      }
+      .notam-card {
+        width: 100%; min-width: 0; margin-bottom: 9px; padding: 11px;
+        border: 1px solid #526578; border-left: 4px solid #e5b65c;
+        border-radius: 8px; background: #253447;
+      }
+      .notam-card.ficon { border-left-color: #f29e50; background: #303746; }
+      .notam-card.fuel, .notam-card.closure { border-left-color: #f16b68; }
+      .notam-topline {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 8px; margin-bottom: 7px; font-size: clamp(10px,.78vw,13px);
+        font-weight: 900; color: #f0ca82; overflow-wrap: anywhere;
+      }
+      .notam-active { color: #9ce5b5; white-space: nowrap; }
+      .notam-title {
+        color: #fff; font-size: clamp(14px,1.05vw,18px);
+        font-weight: 900; line-height: 1.25; overflow-wrap: anywhere;
+      }
+      .notam-condition-title {
+        margin-top: 9px; margin-bottom: 6px; color: #b7c9da;
+        font-size: clamp(9px,.68vw,11px); font-weight: 900;
+      }
+      .notam-thirds {
+        display: grid; grid-template-columns: repeat(3,minmax(0,1fr));
+        gap: 5px; padding: 7px; border-radius: 7px; background: #182739;
+      }
+      .notam-third {
+        min-width: 0; text-align: center; display: flex;
+        flex-direction: column; gap: 4px; font-size: clamp(9px,.65vw,11px);
+        font-weight: 700; color: #b9c9da;
+      }
+      .notam-third strong {
+        font-size: clamp(10px,.8vw,14px); overflow-wrap: anywhere;
+      }
+      .notam-third.good strong { color: #9ce5b5; }
+      .notam-third.medium strong { color: #ffd18a; }
+      .notam-third.caution strong { color: #ff9c80; }
+      .notam-third.poor strong { color: #ff7777; }
+      .notam-pilot-braking {
+        margin-top: 7px; color: #ffd18a; font-size: clamp(10px,.8vw,13px);
+        font-weight: 900; overflow-wrap: anywhere;
+      }
+      .notam-detail {
+        margin-top: 7px; font-size: clamp(10px,.82vw,14px);
+        color: #c2d0df; overflow-wrap: anywhere;
+      }
+      .notam-original {
+        margin-top: 7px; font-size: clamp(10px,.75vw,13px);
+        color: #b9c9da; line-height: 1.35; white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .notam-dates {
+        display: flex; flex-direction: column; gap: 3px; margin-top: 9px;
+        padding-top: 7px; border-top: 1px solid #526578;
+        font-size: clamp(10px,.75vw,13px); line-height: 1.35;
+        color: #b6c9db; overflow-wrap: anywhere;
+      }
+      .notam-empty {
+        padding: 25px 10px; text-align: center;
+        font-size: clamp(13px,1vw,17px); font-weight: 800; color: #a2d4b6;
+      }
+
+      /* ======================================
+         JPG AIRSPACE
+         ====================================== */
+
+      .airspace-content {
+        padding: 11px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        overflow: hidden;
+      }
+
+      .restricted-heading {
+        flex: 0 0 auto;
+        font-size: clamp(10px, 0.8vw, 14px);
+        font-weight: 900;
+        letter-spacing: 0.6px;
+        color: #b8c8d9;
+      }
+
+      .restricted-grid {
+        flex: 1 1 auto;
+        min-height: 0;
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+      }
+
+      .restricted-card {
+        min-width: 0;
+        min-height: 0;
+        padding: 11px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 8px;
+        overflow: hidden;
+        border-radius: 10px;
+        border: 2px solid #607668;
+        background: #26362f;
+      }
+
+      .restricted-card.cold {
+        background: #26362f;
+        border-color: #607668;
+      }
+
+      .restricted-card.scheduled {
+        background: #403521;
+        border-color: #e3b15c;
+      }
+
+      .restricted-card.active {
+        background: #422327;
+        border-color: #f16b68;
+        animation: restricted-active-pulse 2.2s ease-in-out infinite;
+      }
+
+      .restricted-card.unknown {
+        background: #30333c;
+        border-color: #80858d;
+      }
+
+      @keyframes restricted-active-pulse {
+        0%, 100% {
+          box-shadow: inset 0 0 0 0 rgba(241,107,104,0.1);
+        }
+        50% {
+          box-shadow: inset 0 0 0 3px rgba(241,107,104,0.42);
+        }
+      }
+
+      .restricted-name {
+        flex: 0 0 auto;
+        font-size: clamp(14px, 1.15vw, 20px);
+        font-weight: 900;
+        color: #ffffff;
+        overflow-wrap: anywhere;
+      }
+
+      .restricted-center {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        text-align: center;
+      }
+
+      .restricted-state {
+        font-size: clamp(18px, 1.65vw, 29px);
+        font-weight: 900;
+        letter-spacing: 0.3px;
+        line-height: 1.1;
+        overflow-wrap: anywhere;
+      }
+
+      .restricted-card.cold .restricted-state {
+        color: #9bd9b4;
+      }
+
+      .restricted-card.scheduled .restricted-state {
+        color: #f3c875;
+      }
+
+      .restricted-card.active .restricted-state {
+        color: #ff9292;
+      }
+
+      .restricted-card.unknown .restricted-state {
+        color: #c4c8d0;
+      }
+
+      .restricted-subtitle {
+        font-size: clamp(9px, 0.72vw, 12px);
+        font-weight: 800;
+        line-height: 1.25;
+        color: #c6d1dd;
+        overflow-wrap: anywhere;
+      }
+
+      .restricted-bottom {
+        flex: 0 0 auto;
+        min-width: 0;
+        border-top: 1px solid rgba(255,255,255,0.18);
+        padding-top: 9px;
+      }
+
+      .restricted-idle {
+        text-align: center;
+        padding: 11px 2px;
+        font-size: clamp(10px, 0.8vw, 14px);
+        font-weight: 700;
+        color: #aebfcf;
+        overflow-wrap: anywhere;
+      }
+
+      .schedule-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+        min-width: 0;
+      }
+
+      .schedule-cell {
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .schedule-label {
+        margin-bottom: 5px;
+        font-size: clamp(9px, 0.7vw, 12px);
+        font-weight: 900;
+        color: #d8b9a2;
+      }
+
+      .schedule-time {
+        font-size: clamp(13px, 1.05vw, 18px);
+        font-weight: 900;
+        color: #ffffff;
+        white-space: nowrap;
+      }
+
+      .schedule-date {
+        margin-top: 3px;
+        font-size: clamp(10px, 0.78vw, 13px);
+        font-weight: 700;
+        color: #e3e5e9;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+      }
+
+      .schedule-zulu {
+        margin-top: 4px;
+        font-size: clamp(9px, 0.72vw, 12px);
+        font-weight: 700;
+        color: #b8c9d9;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+      }
+
+      .schedule-unavailable {
+        font-size: 11px;
+        color: #b7c7d8;
+        overflow-wrap: anywhere;
+      }
+
+      /* ======================================
+         COMBINED MOA STATUS
+         ====================================== */
+
+      .moa-combined {
+        flex: 0 0 55px;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 13px;
+        border-radius: 9px;
+        border: 1px solid #607668;
+        background: #26362f;
+      }
+
+      .moa-combined-name {
+        min-width: 0;
+        font-size: clamp(12px, 1vw, 17px);
+        font-weight: 900;
+        color: #ffffff;
+        overflow-wrap: anywhere;
+      }
+
+      .moa-combined-state {
+        flex: 0 0 auto;
+        font-size: clamp(15px, 1.25vw, 21px);
+        font-weight: 900;
+        color: #9bd9b4;
+      }
+
+      .moa-combined.hot {
+        background: #422327;
+        border-color: #f16b68;
+      }
+
+      .moa-combined.hot .moa-combined-state {
+        color: #ff9292;
+      }
+
+      .moa-combined.scheduled {
+        background: #403521;
+        border-color: #e3b15c;
+      }
+
+      .moa-combined.scheduled .moa-combined-state {
+        color: #f3c875;
+      }
+
+      .moa-combined.unknown {
+        background: #30333c;
+        border-color: #80858d;
+      }
+
+      .moa-combined.unknown .moa-combined-state {
+        color: #c4c8d0;
+      }
+
+      /* ======================================
+         SMALLER TV / LOWER RESOLUTION
+         ====================================== */
+
+      @media (max-width: 1400px) {
+        .airport-header {
+          flex-basis: 70px;
+          padding: 10px 16px;
+        }
+
+        .airport-layout {
+          padding: 9px;
+          gap: 9px;
+        }
+
+        .top-row,
+        .bottom-row {
+          gap: 9px;
+        }
+
+        .panel-header {
+          flex-basis: 47px;
+          padding: 0 12px;
+        }
+
+        .activity-content {
+          padding: 8px;
+        }
+
+        .activity-grid {
+          gap: 7px;
+        }
+
+        .activity-card {
+          padding: 9px;
+        }
+
+        .airspace-content {
+          padding: 8px;
+          gap: 7px;
+        }
+
+        .restricted-grid {
+          gap: 7px;
+        }
+
+        .restricted-card {
+          padding: 8px;
+          gap: 5px;
+        }
+
+        .moa-combined {
+          flex-basis: 47px;
+        }
+      }
+
+      @media (max-height: 800px) {
+        .airport-header {
+          flex-basis: 65px;
+        }
+
+        .airport-layout {
+          grid-template-rows:
+            minmax(0, 1fr)
+            minmax(0, 1fr);
+          padding: 8px;
+          gap: 8px;
+        }
+
+        .panel-header {
+          flex-basis: 43px;
+        }
+
+        .activity-card {
+          gap: 4px;
+        }
+
+        .activity-bottom {
+          padding-top: 5px;
+        }
+
+        .restricted-card {
+          gap: 4px;
+        }
+
+        .restricted-bottom {
+          padding-top: 5px;
+        }
+
+        .restricted-idle {
+          padding: 5px 2px;
+        }
+
+        .schedule-label {
+          margin-bottom: 2px;
+        }
+
+        .schedule-date,
+        .schedule-zulu {
+          margin-top: 2px;
+        }
+
+        .moa-combined {
+          flex-basis: 42px;
+        }
+      }
