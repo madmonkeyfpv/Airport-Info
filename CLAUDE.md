@@ -91,6 +91,9 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
 - New settings: add to `settings.DEFAULTS`, `settings.html` `fields` list + form control, and use via `cfg` in board.js / app.py.
 - Footer always shows "INFORMATION ONLY · NOT FOR OPERATIONAL USE" — keep it (safety).
 - Git: develop on the branch named by the session; PRs may be merged without asking the owner.
+- **Releases to Home Assistant: bump `version` in root `config.yaml` (semver) in every PR that changes
+  server/ or web/** — HA only offers "Update" when the version changes (Method A, public repo). Note the
+  version in the changelog entry.
 
 ## Known limitations / ideas
 - FlightAware markup can change; tests in `server/tests` catch parser breakage using fixtures. FlightAware shows only ~20 rows per table; small GA fields often have no filed flight plans (empty state is normal).
@@ -149,6 +152,10 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   files (private repo OK as a local add-on), added ingress (sidebar panel), relative web URLs, and wrote
   docs/SETUP_HOME_ASSISTANT.md. Ingress verified with a prefix-stripping proxy simulation (board, /weather redirect,
   settings save all OK).
+
+- **2026-11-22** — Owner asked about making the repo public for easy install. Pre-publication check: no
+  secrets in tree/history, commit emails are GitHub noreply, reference photos carry no EXIF GPS/device data.
+  Advised: public → Method A (add-on repository URL, one-click install + update button). Add-on v0.2.0.
 
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.

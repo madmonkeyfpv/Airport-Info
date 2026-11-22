@@ -150,7 +150,7 @@ For example, you could announce an arrival within 30 minutes.
 
 ## 6. Updating
 
-1. **Method A:** when an update is published, the add-on shows **Update**. Click it.
+1. **Method A:** when a new version is published, the add-on shows **Update**, usually within a day; for sooner, use Add-on Store → ⋮ → **Check for updates**. Click it.
 2. **Method B:**
    - Download the new ZIP and replace the files in `addons/airport_info`.
    - Settings → Add-ons → Add-on Store → ⋮ → **Check for updates**.
