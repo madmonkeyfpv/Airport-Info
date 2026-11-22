@@ -31,13 +31,14 @@ from . import __version__, airports
 from .airspace import AirspaceDB, build_panel
 from .flightaware import fetch_board
 from .notams import PIB_URL, aerodrome_notams, nearby_airspace_notams, parse_pib
+from .radio import build_radio, fetch_datis
 from .settings import Settings
 from .weather import fetch_weather
 
 log = logging.getLogger("airport_info")
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
-TTL = {"flights": 120, "weather": 600, "pib": 900, "airspace": 86400}
+TTL = {"flights": 120, "weather": 600, "pib": 900, "airspace": 86400, "atis": 300}
 
 
 class Cache:
@@ -164,6 +165,12 @@ class App:
     async def _weather(self, ap: dict):
         return await self.cache.get(f"wx:{ap['icao'] or ap['iata']}", TTL["weather"], lambda: fetch_weather(self.session, ap))
 
+    async def _datis(self, ap: dict):
+        if not ap.get("icao") or not any("ATIS" in (f.get("type", "") + f.get("name", "")).upper()
+                                         for f in ap.get("frequencies") or []):
+            return None, None, None  # no ATIS published: don't query
+        return await self.cache.get(f"atis:{ap['icao']}", TTL["atis"], lambda: fetch_datis(self.session, ap["icao"]))
+
     async def build(self, cfg: dict) -> dict:
         ap = airports.resolve(cfg["airport"])
         if not ap:
@@ -171,8 +178,8 @@ class App:
         now = datetime.now(timezone.utc)
         asyncio.ensure_future(self.airspace.refresh(self.session))
         fa_key = ap["icao"] or ap["iata"]
-        (board, fa_t, fa_err), (wx, wx_t, wx_err), (pib, pib_t, pib_err) = await asyncio.gather(
-            self._flights(fa_key), self._weather(ap), self._pib())
+        (board, fa_t, fa_err), (wx, wx_t, wx_err), (pib, pib_t, pib_err), (datis, atis_t, atis_err) = await asyncio.gather(
+            self._flights(fa_key), self._weather(ap), self._pib(), self._datis(ap))
 
         flights = process_flights(board, now) if board else None
         notams, panel = None, None
@@ -181,6 +188,10 @@ class App:
             near_n = nearby_airspace_notams(pib, ap["lat"], ap["lon"], cfg["airspace_range_nm"], now)
             static = self.airspace.nearby(ap["lat"], ap["lon"], cfg["airspace_range_nm"])
             panel = build_panel(static, near_n, cfg["airspace_pinned"], cfg["airspace_cards"], cfg["warning_range_nm"])
+
+        radio = build_radio(ap, pib or [], now, cfg["service_hours"], datis) if cfg["show_radio"] else None
+        if radio is not None and pib is None:
+            radio["notams_unavailable"] = True
 
         iso = lambda t: datetime.fromtimestamp(t, timezone.utc).isoformat() if t else None
         return {
@@ -192,7 +203,9 @@ class App:
             "flights": flights,
             "notams": notams,
             "airspace": panel,
+            "radio": radio,
             "sources": {
+                "atis": {"updated": iso(atis_t), "error": atis_err},
                 "flightaware": {"updated": iso(fa_t), "error": fa_err, "url": f"https://www.flightaware.com/live/airport/{fa_key}"},
                 "metar": {"updated": iso(wx_t), "error": wx_err},
                 "notam": {"updated": iso(pib_t), "error": pib_err, "provider": "NATS AIS PIB"},

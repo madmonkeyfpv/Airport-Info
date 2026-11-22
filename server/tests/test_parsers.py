@@ -122,3 +122,31 @@ def test_rvr():
     assert r[1]["min_qual"] == "above" and r[1]["tendency"] == "up"
     assert r[2]["max_m"] == 800 and r[2]["tendency"] == "down"
     assert parse_rvr("METAR EGSS 222250Z AUTO 03006KT 9999 NCD 02/00 Q1019") == []
+
+
+def test_datis_parse():
+    from airport_info.radio import parse_datis
+    html = (FX / "datis_EGLL.html").read_text()
+    d = parse_datis(html, datetime(2026, 11, 22, 22, 0, tzinfo=timezone.utc))
+    arr = d["reports"][0]
+    assert arr["kind"] == "ARRIVAL" and arr["letter"] == "Q" and arr["runway"] == "09L" and not arr["stale"]
+    assert len(d["reports"]) == 1  # departure report from 0942Z is > 3 h old and dropped
+    assert parse_datis(html, datetime(2026, 11, 23, 6, 0, tzinfo=timezone.utc)) is None
+
+
+def test_radio_status_from_notams_and_hours():
+    from airport_info.radio import build_radio, hours_windows, notam_effects
+    ns = parse_pib((FX / "pib_subset.xml").read_bytes())
+    bb = airports.resolve("EGBB")
+    # C6878/26: "ATC CLSD. AD CLSD" MON-FRI 2330-0600 -> active Tuesday 01:00Z, upcoming Monday afternoon
+    tue = build_radio(bb, ns, datetime(2026, 11, 24, 1, 0, tzinfo=timezone.utc))
+    assert all(g["status"] == "closed" and g["notam"] == "C6878/26" for g in tue["groups"] if g["service"] != "atis")
+    mon = build_radio(bb, ns, datetime(2026, 11, 23, 15, 0, tzinfo=timezone.utc))
+    twr = next(g for g in mon["groups"] if g["service"] == "twr")
+    assert twr["note"] == "CLOSES" and twr["until"].startswith("2026-11-23T23:30")
+    assert notam_effects({"text": "AFIS NOT AVBL. A/G AVBL ON 122.075", "code23": "XX", "code45": "XX"}) == {"afis"}
+    su = airports.resolve("EGSU")
+    r = build_radio(su, [], datetime(2026, 11, 23, 10, 0, tzinfo=timezone.utc), "0900-1700")
+    assert r["groups"][0]["status"] == "open" and r["groups"][0]["freqs"] == ["122.075"]
+    w = hours_windows("MON-FRI 0800-1800, SAT SUN 0900-1700", NOW)
+    assert any(s.weekday() == 5 and s.hour == 9 for s, _ in w)  # Saturday 0900 local = 0900Z in winter

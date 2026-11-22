@@ -7,6 +7,7 @@ import csv, io, json, math, pathlib, urllib.request
 
 SRC = "https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv"
 RWY_SRC = "https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/runways.csv"
+FREQ_SRC = "https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airport-frequencies.csv"
 COUNTRIES = {"GB", "IM", "JE", "GG"}
 KEEP_TYPES = {"large_airport", "medium_airport", "small_airport", "heliport"}
 OUT = pathlib.Path(__file__).resolve().parent.parent / "server/airport_info/data/uk_airports.json"
@@ -52,9 +53,34 @@ def load_runways():
     return out
 
 
+def load_frequencies():
+    """Published frequencies per airport. 8.33 kHz duplicates (122.08 vs 122.075) collapse to the precise one."""
+    raw = urllib.request.urlopen(FREQ_SRC, timeout=60).read().decode("utf-8")
+    out = {}
+    for r in csv.DictReader(io.StringIO(raw)):
+        mhz = _f(r["frequency_mhz"])
+        if not mhz:
+            continue
+        txt = r["frequency_mhz"].strip()
+        out.setdefault(r["airport_ident"], []).append({
+            "type": (r["type"] or "").strip().upper(), "name": (r["description"] or "").strip(),
+            "mhz": mhz, "text": f"{mhz:.3f}" if len(txt.split(".")[-1]) >= 3 else f"{mhz:.2f}" if "." in txt else f"{mhz:.1f}",
+        })
+    for ident, lst in out.items():
+        lst.sort(key=lambda f: -len(f["text"]))  # most precise first
+        kept = []
+        for f in lst:
+            if not any(abs(k["mhz"] - f["mhz"]) < 0.006 for k in kept):
+                kept.append(f)
+        kept.sort(key=lambda f: f["mhz"])
+        out[ident] = kept
+    return out
+
+
 def main():
     raw = urllib.request.urlopen(SRC, timeout=60).read().decode("utf-8")
     runways = load_runways()
+    freqs = load_frequencies()
     rows = []
     for r in csv.DictReader(io.StringIO(raw)):
         if r["iso_country"] not in COUNTRIES or r["type"] not in KEEP_TYPES:
@@ -72,6 +98,7 @@ def main():
             "lon": round(float(r["longitude_deg"]), 5),
             "elev": int(float(r["elevation_ft"])) if r["elevation_ft"] else None,
             "runways": runways.get(r["ident"], []),
+            "frequencies": freqs.get(r["ident"], []),
         })
     rows.sort(key=lambda a: (a["icao"] or "ZZZZ", a["iata"]))
     OUT.parent.mkdir(parents=True, exist_ok=True)
