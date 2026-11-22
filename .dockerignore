@@ -1,0 +1,5 @@
+.git
+reference
+data
+server/data
+**/__pycache__

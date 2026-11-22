@@ -1,0 +1,12 @@
+services:
+  airport-info:
+    build: .
+    container_name: airport-info
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Set to require a token before the settings page can save changes (recommended for public sites)
+      ADMIN_TOKEN: ""
+    volumes:
+      - ./data:/data

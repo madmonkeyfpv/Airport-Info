@@ -1,0 +1,18 @@
+# Airport Info dashboard view (replaces the original button-card kiosk in reference/).
+# Add as a new dashboard in raw-configuration mode, or paste the view into an existing one.
+# Requires the card resource:  Settings → Dashboards → ⋮ → Resources →
+#   URL: http://<airport-info-server>:8080/card/airport-info-card.js   Type: JavaScript module
+title: Airport Information
+views:
+  - title: Airport Information
+    path: airport-info
+    icon: mdi:airplane
+    type: panel
+    cards:
+      - type: custom:airport-info-card
+        server: http://homeassistant.local:8080   # Airport Info add-on / server URL
+        # airport: EGBJ                            # optional: override the server's saved airport
+        full_screen: true                          # fixed full-viewport TV layout (hides HA chrome)
+        # settings:                                # optional per-screen overrides
+        #   theme: midnight
+        #   temp_unit: C

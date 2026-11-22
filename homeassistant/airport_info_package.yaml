@@ -1,0 +1,45 @@
+# Optional Home Assistant package: exposes Airport Info data as sensors for automations
+# (e.g. announce an arrival within 30 min, flash lights when a nearby danger area goes active).
+# Put in /config/packages/ and enable packages in configuration.yaml:
+#   homeassistant:
+#     packages: !include_dir_named packages
+# Change the resource URL to your server and (optionally) the airport code.
+rest:
+  - resource: http://homeassistant.local:8080/api/data
+    # params:
+    #   airport: EGBJ
+    scan_interval: 120
+    timeout: 60
+    sensor:
+      - name: Airport Info Temperature
+        unique_id: airport_info_temperature
+        value_template: "{{ value_json.weather.temp_c if value_json.weather else none }}"
+        unit_of_measurement: "°C"
+        device_class: temperature
+      - name: Airport Info Inbound Aircraft
+        unique_id: airport_info_inbound
+        value_template: "{{ value_json.flights.arrivals | length if value_json.flights else none }}"
+        unit_of_measurement: aircraft
+        json_attributes_path: "$.flights"
+        json_attributes: [arrivals, latest_arrival]
+      - name: Airport Info Expected Departures
+        unique_id: airport_info_departures
+        value_template: "{{ value_json.flights.departures | length if value_json.flights else none }}"
+        unit_of_measurement: aircraft
+        json_attributes_path: "$.flights"
+        json_attributes: [departures, latest_departure]
+      - name: Airport Info Next Arrival
+        unique_id: airport_info_next_arrival
+        device_class: timestamp
+        value_template: >
+          {% set a = value_json.flights.arrivals if value_json.flights else [] %}
+          {{ a[0].arrival_time if a else none }}
+      - name: Airport Info NOTAMs
+        unique_id: airport_info_notams
+        value_template: "{{ value_json.notams | length if value_json.notams is not none else none }}"
+        json_attributes: [notams]
+      - name: Airport Info Airspace
+        unique_id: airport_info_airspace
+        value_template: "{{ value_json.airspace.summary.state if value_json.airspace else 'unknown' }}"
+        json_attributes_path: "$.airspace"
+        json_attributes: [cards, summary]
