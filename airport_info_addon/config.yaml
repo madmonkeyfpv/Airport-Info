@@ -1,0 +1,21 @@
+name: Airport Info
+version: "0.1.0"
+slug: airport_info
+description: UK airport information display (FlightAware, NATS NOTAMs, METAR, restricted airspace)
+url: https://github.com/madmonkeyfpv/airport-info
+arch: [amd64, aarch64, armv7]
+startup: application
+boot: auto
+init: false
+ports:
+  8080/tcp: 8080
+ports_description:
+  8080/tcp: Display website, settings page and API
+webui: "http://[HOST]:[PORT:8080]/"
+panel_icon: mdi:airplane
+options:
+  admin_token: ""
+schema:
+  admin_token: password?
+map:
+  - addon_config:rw

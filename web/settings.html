@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#08111e">
+<title>Display Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #08111e; --panel: #142234; --head: #1c3045; --line: #3a5067; --text: #f1f5fa; --muted: #a9bfd4; --sky: #7dd3fc; --green: #86efac; --red: #f16b68; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 500 16px/1.45 Barlow, "Segoe UI", Arial, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: .04em; text-transform: uppercase; }
+  .lead { color: var(--muted); margin: 0 0 22px; }
+  section { background: var(--panel); border: 2px solid var(--line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  section h2 { margin: 0; padding: 12px 16px; background: var(--head); font-size: 15px; letter-spacing: .08em; border-bottom: 1px solid var(--line); }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; padding: 16px; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 700; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+  label small { text-transform: none; letter-spacing: 0; font-weight: 500; color: #7f95ab; }
+  input, select { font: inherit; color: var(--text); background: #0d1a2a; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  input:focus, select:focus { outline: 2px solid var(--sky); outline-offset: 0; }
+  .check { flex-direction: row; align-items: center; gap: 10px; }
+  .check input { width: 20px; height: 20px; }
+  .ac { position: relative; }
+  .ac-list { position: absolute; left: 0; right: 0; top: 100%; z-index: 4; background: #0d1a2a; border: 1px solid var(--line); border-radius: 8px; margin-top: 4px; max-height: 280px; overflow: auto; display: none; }
+  .ac-list button { display: block; width: 100%; text-align: left; padding: 9px 12px; border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; }
+  .ac-list button:hover, .ac-list button:focus { background: #1c3045; }
+  .ac-list b { color: var(--sky); margin-right: 8px; }
+  .chosen { margin-top: 6px; font-size: 14px; color: var(--green); text-transform: none; letter-spacing: 0; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  button.primary, a.btn { font: 800 15px Barlow, Arial, sans-serif; letter-spacing: .06em; padding: 12px 22px; border-radius: 9px; border: 0; cursor: pointer; text-decoration: none; }
+  button.primary { background: var(--sky); color: #08111e; }
+  a.btn { background: transparent; border: 1px solid var(--line); color: var(--text); }
+  #msg { font-weight: 700; } #msg.ok { color: var(--green); } #msg.err { color: var(--red); }
+  .hint { padding: 0 16px 16px; color: #7f95ab; font-size: 14px; }
+  code { color: var(--sky); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Display settings</h1>
+  <p class="lead">Choose the airport and how the information screens look. Changes apply to every display using this server within one refresh.</p>
+
+  <form id="f" autocomplete="off">
+    <section>
+      <h2>AIRPORT</h2>
+      <div class="grid">
+        <label class="ac">ICAO or IATA code
+          <input id="airport" name="airport" required maxlength="40" placeholder="e.g. EGBJ, GLO or Gloucester">
+          <div class="ac-list" id="ac"></div>
+          <div class="chosen" id="chosen"></div>
+        </label>
+        <label>Title override <small>Blank uses the airport name</small><input name="title" maxlength="60"></label>
+        <label>Subtitle override <small>Blank: “EGBJ / GLO · AIRPORT INFORMATION”</small><input name="subtitle" maxlength="80"></label>
+        <label>Theme
+          <select name="theme"><option value="navy">Navy (default)</option><option value="midnight">Midnight</option><option value="high-contrast">High contrast</option></select>
+        </label>
+      </div>
+    </section>
+
+    <section>
+      <h2>UNITS &amp; TIME</h2>
+      <div class="grid">
+        <label>Temperature<select name="temp_unit"><option value="C">Celsius (°C)</option><option value="F">Fahrenheit (°F)</option></select></label>
+        <label>Clock<select name="clock"><option value="24h">24-hour</option><option value="12h">12-hour</option></select></label>
+        <label class="check"><input type="checkbox" name="show_zulu"> Show UTC (Zulu) alongside local time</label>
+        <label>Refresh interval (seconds)<input type="number" name="refresh_seconds" min="15" max="900"></label>
+      </div>
+    </section>
+
+    <section>
+      <h2>AIRSPACE &amp; NOTAMS</h2>
+      <div class="grid">
+        <label>Restricted / danger area radius (NM)<input type="number" name="airspace_range_nm" min="2" max="100"></label>
+        <label>Area cards shown<select name="airspace_cards"><option>1</option><option>2</option><option>3</option></select></label>
+        <label>Pinned areas <small>Comma separated, e.g. <code>D123, R105</code>. Blank = nearest automatically</small><input name="airspace_pinned"></label>
+        <label>Navigation warning radius (NM) <small>Drones, parachuting, gliding, model flying…</small><input type="number" name="warning_range_nm" min="1" max="50"></label>
+        <label class="check"><input type="checkbox" name="include_obstacle_notams"> Include obstacle NOTAMs</label>
+        <label class="check"><input type="checkbox" name="include_airspace_notams"> Include airspace / warning NOTAMs in the NOTAM list</label>
+      </div>
+    </section>
+
+    <section id="adminSec" hidden>
+      <h2>ADMIN</h2>
+      <div class="grid"><label>Admin token <small>Required by this server to save changes. Stored in this browser only.</small><input id="token" type="password"></label></div>
+    </section>
+
+    <div class="bar">
+      <button class="primary" type="submit">SAVE SETTINGS</button>
+      <a class="btn" href="./">OPEN DISPLAY</a>
+      <a class="btn" id="preview" href="./" target="_blank">PREVIEW WITHOUT SAVING</a>
+      <span id="msg" role="status"></span>
+    </div>
+  </form>
+  <p class="hint">Tip: any setting can be overridden per screen with the URL, e.g. <code>/?airport=EGLC&amp;theme=midnight&amp;kiosk</code>. <code>kiosk</code> hides the settings button.</p>
+</div>
+<script type="module">
+const f = document.getElementById('f');
+const msg = document.getElementById('msg');
+const apInput = document.getElementById('airport');
+const ac = document.getElementById('ac');
+const chosen = document.getElementById('chosen');
+const tokenInput = document.getElementById('token');
+const API = (new URLSearchParams(location.search).get('api') || '').replace(/\/$/, '');
+try { tokenInput.value = localStorage.getItem('aib-admin-token') || ''; } catch {}
+
+const say = (t, ok) => { msg.textContent = t; msg.className = ok ? 'ok' : 'err'; };
+const fields = ['airport', 'title', 'subtitle', 'theme', 'temp_unit', 'clock', 'show_zulu', 'refresh_seconds', 'airspace_range_nm', 'airspace_cards', 'airspace_pinned', 'warning_range_nm', 'include_obstacle_notams', 'include_airspace_notams'];
+
+function collect() {
+  const out = {};
+  for (const k of fields) {
+    const el = f.elements[k];
+    if (!el) continue;
+    out[k] = el.type === 'checkbox' ? el.checked : el.value;
+  }
+  out.airport = out.airport.trim().toUpperCase();
+  return out;
+}
+
+function updatePreview() {
+  const q = new URLSearchParams();
+  Object.entries(collect()).forEach(([k, v]) => q.set(k, String(v)));
+  document.getElementById('preview').href = './?' + q.toString();
+}
+
+async function lookup(code) {
+  const r = await fetch(`${API}/api/airports?q=${encodeURIComponent(code)}`);
+  return r.ok ? r.json() : [];
+}
+
+async function load() {
+  const s = await (await fetch(`${API}/api/settings`)).json();
+  for (const k of fields) {
+    const el = f.elements[k];
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = !!s[k];
+    else el.value = Array.isArray(s[k]) ? s[k].join(', ') : (s[k] ?? '');
+  }
+  document.getElementById('adminSec').hidden = !s._admin_token_required;
+  const [a] = await lookup(s.airport);
+  if (a) chosen.textContent = `✓ ${a.name} — ${[a.icao, a.iata].filter(Boolean).join(' / ')}`;
+  updatePreview();
+}
+
+let t;
+apInput.addEventListener('input', () => {
+  clearTimeout(t);
+  chosen.textContent = '';
+  t = setTimeout(async () => {
+    const q = apInput.value.trim();
+    if (q.length < 2) { ac.style.display = 'none'; return; }
+    const list = await lookup(q);
+    ac.innerHTML = list.map(a => `<button type="button" data-code="${a.icao || a.iata}"><b>${a.icao || '—'} ${a.iata ? '/ ' + a.iata : ''}</b>${a.name.replace(/</g, '&lt;')} <small>${(a.city || '').replace(/</g, '&lt;')}</small></button>`).join('') || '<button type="button" disabled>No UK airport found</button>';
+    ac.style.display = 'block';
+  }, 180);
+});
+ac.addEventListener('click', e => {
+  const b = e.target.closest('button[data-code]');
+  if (!b) return;
+  apInput.value = b.dataset.code;
+  chosen.textContent = '✓ ' + b.textContent.trim();
+  ac.style.display = 'none';
+  updatePreview();
+});
+document.addEventListener('click', e => { if (!e.target.closest('.ac')) ac.style.display = 'none'; });
+f.addEventListener('input', updatePreview);
+
+f.addEventListener('submit', async e => {
+  e.preventDefault();
+  const body = collect();
+  const [a] = await lookup(body.airport);
+  if (!a || (a.icao !== body.airport && a.iata !== body.airport)) { say(`“${body.airport}” is not a recognised UK ICAO/IATA code — pick one from the list.`); return; }
+  try { localStorage.setItem('aib-admin-token', tokenInput.value); } catch {}
+  const r = await fetch(`${API}/api/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tokenInput.value }, body: JSON.stringify(body) });
+  if (r.ok) say('Saved ✓ — displays update on their next refresh.', true);
+  else say('Could not save: ' + (await r.text()));
+});
+load().catch(err => say('Could not reach the server: ' + err.message));
+</script>
+</body>
+</html>
