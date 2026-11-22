@@ -7,7 +7,7 @@
 rest:
   - resource: http://homeassistant.local:8080/api/data
     # params:
-    #   airport: EGBJ
+    #   airport: EGSU
     scan_interval: 120
     timeout: 60
     sensor:

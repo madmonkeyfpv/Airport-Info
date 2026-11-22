@@ -48,15 +48,17 @@
       <h2>AIRPORT</h2>
       <div class="grid">
         <label class="ac">ICAO or IATA code
-          <input id="airport" name="airport" required maxlength="40" placeholder="e.g. EGBJ, GLO or Gloucester">
+          <input id="airport" name="airport" required maxlength="40" placeholder="e.g. EGSU, Duxford, EGBJ or GLO">
           <div class="ac-list" id="ac"></div>
           <div class="chosen" id="chosen"></div>
         </label>
         <label>Title override <small>Blank uses the airport name</small><input name="title" maxlength="60"></label>
-        <label>Subtitle override <small>Blank: “EGBJ / GLO · AIRPORT INFORMATION”</small><input name="subtitle" maxlength="80"></label>
+        <label>Subtitle override <small>Blank: “EGSU · AIRPORT INFORMATION”</small><input name="subtitle" maxlength="80"></label>
         <label>Theme
           <select name="theme"><option value="navy">Navy (default)</option><option value="midnight">Midnight</option><option value="high-contrast">High contrast</option></select>
         </label>
+        <label>Screen<select name="view"><option value="board">Information board</option><option value="weather">Weather station (wind &amp; runways)</option><option value="rotate">Rotate board ↔ weather</option></select></label>
+        <label>Rotate every (seconds)<input type="number" name="rotate_seconds" min="10" max="600"></label>
       </div>
     </section>
 
@@ -94,7 +96,7 @@
       <span id="msg" role="status"></span>
     </div>
   </form>
-  <p class="hint">Tip: any setting can be overridden per screen with the URL, e.g. <code>/?airport=EGLC&amp;theme=midnight&amp;kiosk</code>. <code>kiosk</code> hides the settings button.</p>
+  <p class="hint">Tip: any setting can be overridden per screen with the URL, e.g. <code>/?airport=EGLC&amp;view=weather&amp;kiosk</code>. <code>kiosk</code> hides the settings button.</p>
 </div>
 <script type="module">
 const f = document.getElementById('f');
@@ -107,7 +109,7 @@ const API = (new URLSearchParams(location.search).get('api') || '').replace(/\/$
 try { tokenInput.value = localStorage.getItem('aib-admin-token') || ''; } catch {}
 
 const say = (t, ok) => { msg.textContent = t; msg.className = ok ? 'ok' : 'err'; };
-const fields = ['airport', 'title', 'subtitle', 'theme', 'temp_unit', 'clock', 'show_zulu', 'refresh_seconds', 'airspace_range_nm', 'airspace_cards', 'airspace_pinned', 'warning_range_nm', 'include_obstacle_notams', 'include_airspace_notams'];
+const fields = ['airport', 'title', 'subtitle', 'theme', 'temp_unit', 'clock', 'show_zulu', 'refresh_seconds', 'airspace_range_nm', 'airspace_cards', 'airspace_pinned', 'warning_range_nm', 'include_obstacle_notams', 'include_airspace_notams', 'view', 'rotate_seconds'];
 
 function collect() {
   const out = {};

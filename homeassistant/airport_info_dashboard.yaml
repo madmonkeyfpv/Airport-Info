@@ -11,8 +11,18 @@ views:
     cards:
       - type: custom:airport-info-card
         server: http://homeassistant.local:8080   # Airport Info add-on / server URL
-        # airport: EGBJ                            # optional: override the server's saved airport
+        # airport: EGSU                            # optional: override the server's saved airport
         full_screen: true                          # fixed full-viewport TV layout (hides HA chrome)
+        view: board                                # board | weather | rotate (alternates every rotate_seconds)
+  - title: Airfield Weather
+    path: airfield-weather
+    icon: mdi:weather-windy
+    type: panel
+    cards:
+      - type: custom:airport-info-card
+        server: http://homeassistant.local:8080
+        view: weather
+        full_screen: true
         # settings:                                # optional per-screen overrides
         #   theme: midnight
         #   temp_unit: C
