@@ -19,13 +19,14 @@ Settings → Dashboards → ⋮ → Resources → Add:
 
 > If Home Assistant is served over **https**, the browser blocks an http resource/API (mixed content).
 > Either put the server behind the same https reverse proxy, or copy `web/board.js` to
-> `/config/www/airport-info/board.js` and `web/card/airport-info-card.js` to
+> `/config/www/airport-info/board.js` (and `web/weather.js` → `/config/www/airport-info/weather.js`) and `web/card/airport-info-card.js` to
 > `/config/www/airport-info/card/airport-info-card.js`, use resource `/local/airport-info/card/airport-info-card.js`,
 > and set `server:` to an https URL of the server.
 
 ## 3. Add the dashboard
 Create a dashboard from `airport_info_dashboard.yaml` (panel view, `full_screen: true` like the original kiosk).
-Card options: `server`, `airport`, `full_screen`, `height`, `settings` (any server setting).
+Card options: `server`, `airport`, `view` (`board` | `weather` | `rotate`), `rotate_seconds`, `full_screen`, `height`, `settings` (any server setting).
+For a dedicated weather TV use `view: weather`; for one screen alternating both use `view: rotate`.
 
 ## 4. Optional sensors
 `airport_info_package.yaml` creates REST sensors (temperature, inbound count, next arrival time,

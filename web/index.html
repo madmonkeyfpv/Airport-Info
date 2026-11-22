@@ -28,14 +28,15 @@
 </a>
 <script type="module">
 import { renderBoard, BOARD_CSS, tickClocks, autoScroll } from './board.js';
+import { renderWeather, WEATHER_CSS, tickWeatherClock } from './weather.js';
 
 const params = new URLSearchParams(location.search);
 const API = (params.get('api') || '').replace(/\/$/, '');      // optional: separate API host
 if (params.has('kiosk')) document.body.classList.add('kiosk');
-const style = document.createElement('style'); style.textContent = BOARD_CSS; document.head.appendChild(style);
+const style = document.createElement('style'); style.textContent = BOARD_CSS + WEATHER_CSS; document.head.appendChild(style);
 
 const app = document.getElementById('app');
-let data = null, stopScroll = null, timer = null;
+let data = null, stopScroll = null, timer = null, page = 'board', rotateTimer = null;
 
 function query() {
   const q = new URLSearchParams(params); q.delete('api'); q.delete('kiosk');
@@ -46,12 +47,24 @@ function render() {
   if (!data) return;
   const scroll = {};
   app.querySelectorAll('[data-panel] .aib-scroll').forEach(el => { scroll[el.closest('[data-panel]').dataset.panel] = el.scrollTop; });
-  app.innerHTML = renderBoard(data);
+  const view = data.settings?.view || 'board';
+  if (view !== 'rotate') page = view === 'weather' ? 'weather' : 'board';
+  app.innerHTML = page === 'weather' ? renderWeather(data) : renderBoard(data);
   app.querySelectorAll('[data-panel] .aib-scroll').forEach(el => { el.scrollTop = scroll[el.closest('[data-panel]').dataset.panel] || 0; });
   document.title = `${data.airport.icao || data.airport.iata} · Airport Information`;
   if (stopScroll) stopScroll();
   const wallDisplay = matchMedia('(min-width: 1001px) and (orientation: landscape)').matches;
-  stopScroll = wallDisplay ? autoScroll(app) : null;
+  stopScroll = wallDisplay && page === 'board' ? autoScroll(app) : null;
+  scheduleRotate();
+}
+
+function scheduleRotate() {
+  if (data?.settings?.view !== 'rotate' || rotateTimer) return;
+  rotateTimer = setTimeout(() => {
+    rotateTimer = null;
+    page = page === 'board' ? 'weather' : 'board';
+    render();
+  }, Math.max(10, Number(data.settings.rotate_seconds) || 30) * 1000);
 }
 
 async function load() {
@@ -70,7 +83,7 @@ async function load() {
   timer = setTimeout(load, wait * 1000);
 }
 
-setInterval(() => data && tickClocks(app, data.settings), 1000);
+setInterval(() => { if (data) { tickClocks(app, data.settings); tickWeatherClock(app); } }, 1000);
 // Re-render every 30 s so "minutes remaining" and urgency colours stay current between fetches.
 setInterval(() => render(), 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });

@@ -4,6 +4,11 @@ restricted/danger airspace for **any UK airport** (choose by ICAO `EGBJ` or IATA
 Runs as a **website** and as a **Home Assistant** dashboard (same board in both).
 
 ![TV display](docs/screenshots/tv_egbb.jpg)
+![Weather station](docs/screenshots/weather_egsu.jpg)
+
+Two screens: the **information board** (`/`) and the **weather station** (`/weather`: wind rose with the
+airfield's runways, QNH/QFE, density altitude, crosswind components). `/?view=rotate` alternates them.
+Default airport: **EGSU Duxford**.
 
 ## Quick start
 ```bash

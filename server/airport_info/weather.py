@@ -6,12 +6,58 @@ report is stale (airfield closed overnight), the nearest fresh METAR within
 """
 from __future__ import annotations
 
+import math
+import re
 import time
 
 from .geo import distance_nm
 
 API = "https://aviationweather.gov/api/data/metar"
 STALE_SECONDS = 3 * 3600
+
+
+def _visibility(raw: str, cover: str | None) -> str:
+    if " CAVOK" in raw or cover == "CAVOK":
+        return "10 KM+"
+    m = re.search(r"KT\s+(?:\d{3}V\d{3}\s+)?(\d{4})(?:NDV)?\b", raw)
+    if m:
+        v = int(m[1])
+        return "10 KM+" if v == 9999 else (f"{v / 1000:g} KM" if v >= 5000 else f"{v} M")
+    m = re.search(r"\b(\d{1,2})SM\b", raw)
+    return f"{m[1]} SM" if m else ""
+
+
+def _sky(m: dict, raw: str) -> str:
+    if " CAVOK" in raw:
+        return "CAVOK"
+    layers = [f"{c['cover']}{int(c['base']) // 100:03d}" if c.get("base") is not None else c["cover"]
+              for c in m.get("clouds") or []]
+    vv = re.search(r"\bVV(\d{3})\b", raw)
+    if vv:
+        layers.append(f"VV{vv[1]}")
+    if layers:
+        return " ".join(layers)
+    for code in ("NSC", "NCD", "SKC", "CLR"):
+        if f" {code}" in raw:
+            return code
+    return m.get("cover") or ""
+
+
+def derived(qnh: float | None, temp: float | None, dew: float | None, elev_ft: float | None) -> dict:
+    out = {}
+    if qnh:
+        out["qnh_inhg"] = round(qnh * 0.0295300, 2)
+        if elev_ft is not None:
+            out["qfe"] = round(qnh - elev_ft / 27.0)
+            pa = elev_ft + (1013.25 - qnh) * 27.0
+            out["pressure_alt_ft"] = round(pa)
+            if temp is not None:
+                isa = 15 - 1.98 * pa / 1000
+                out["density_alt_ft"] = int(round((pa + 118.8 * (temp - isa)) / 10) * 10)
+    if temp is not None and dew is not None:
+        g = lambda t: math.exp(17.625 * t / (243.04 + t))
+        out["humidity"] = round(100 * g(dew) / g(temp))
+    return out
 
 
 def _summarise(m: dict, airport: dict) -> dict:
@@ -24,7 +70,16 @@ def _summarise(m: dict, airport: dict) -> dict:
         wind = f"VRB {int(wspd)}KT"
     if m.get("wgst"):
         wind += f" G{int(m['wgst'])}"
+    raw = m.get("rawOb") or ""
+    var = re.search(r"\b(\d{3})V(\d{3})\b", raw)
     return {
+        "wind_var_from": int(var[1]) if var else None,
+        "wind_var_to": int(var[2]) if var else None,
+        "visibility_text": _visibility(raw, m.get("cover")),
+        "sky": _sky(m, raw),
+        "weather": m.get("wxString") or "",
+        "clouds": m.get("clouds") or [],
+        **derived(m.get("altim"), m.get("temp"), m.get("dewp"), airport.get("elev")),
         "source_icao": m.get("icaoId"),
         "source_name": m.get("name"),
         "is_local": m.get("icaoId") == airport.get("icao"),

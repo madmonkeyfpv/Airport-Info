@@ -99,3 +99,16 @@ def test_airspace_panel():
     lc = airports.resolve("EGLC")
     p2 = build_panel(db.nearby(lc["lat"], lc["lon"], 30), nearby_airspace_notams(ns, lc["lat"], lc["lon"], 30, NOW), [], 2, 10)
     assert p2["cards"][0]["id"] == "D180B" and p2["cards"][0]["state"] == "active"
+
+
+def test_weather_derived_and_runways():
+    from airport_info.weather import derived, _visibility, _sky
+    d = derived(1019, 2, 0, 125)
+    assert d["qfe"] == 1014 and d["qnh_inhg"] == 30.09
+    assert -1600 <= d["density_alt_ft"] <= -1550 and d["humidity"] == 87
+    assert _visibility("METAR EGSS 222250Z AUTO 03006KT 9999 NCD 02/00 Q1019", None) == "10 KM+"
+    assert _visibility("METAR EGXX 222250Z 24010KT 200V280 4000 BR", None) == "4000 M"
+    assert _sky({"clouds": [{"cover": "FEW", "base": 3500}, {"cover": "BKN", "base": 12000}]}, "X") == "FEW035 BKN120"
+    egsu = airports.resolve("EGSU")
+    assert {r["le"] for r in egsu["runways"]} == {"06", "06L"}
+    assert 55 < egsu["runways"][0]["le_hdg"] < 65

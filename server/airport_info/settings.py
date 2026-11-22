@@ -6,7 +6,7 @@ import pathlib
 import threading
 
 DEFAULTS = {
-    "airport": "EGBJ",            # ICAO (4) or IATA (3) code of any UK airport
+    "airport": "EGSU",            # ICAO (4) or IATA (3) code of any UK airport (default: Duxford)
     "title": "",                  # header override; blank = airport name
     "subtitle": "",               # blank = "ICAO / IATA · AIRPORT INFORMATION"
     "temp_unit": "C",             # C or F
@@ -20,6 +20,8 @@ DEFAULTS = {
     "include_airspace_notams": False,
     "refresh_seconds": 60,        # display refresh interval
     "theme": "navy",              # navy | midnight | high-contrast
+    "view": "board",              # board | weather | rotate  (rotate alternates both)
+    "rotate_seconds": 30,         # time on each page when view = rotate
 }
 
 TYPES = {k: type(v) for k, v in DEFAULTS.items()}

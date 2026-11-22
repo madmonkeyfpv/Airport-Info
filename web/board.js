@@ -11,7 +11,7 @@ export const esc = v => String(v ?? '')
 
 const d = iso => { if (!iso) return null; const x = new Date(iso); return Number.isFinite(x.getTime()) ? x : null; };
 
-function fmt(cfg) {
+export function fmt(cfg) {
   const h12 = cfg.clock === '12h';
   const time = x => x ? new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: h12 ? 'numeric' : '2-digit', minute: '2-digit', hour12: h12 }).format(x).toUpperCase() : '—';
   const date = x => x ? new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(x) : '';

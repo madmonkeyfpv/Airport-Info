@@ -1,12 +1,13 @@
 """aiohttp web server: JSON API + static display website.
 
 Endpoints
-  GET  /api/data?airport=EGBJ[&other setting overrides]  -> everything the display needs
+  GET  /api/data?airport=EGSU[&other setting overrides]  -> everything the display needs
   GET  /api/airports?q=glou                               -> airport search (UK)
   GET  /api/settings                                      -> current saved settings
   POST /api/settings  (JSON body; header X-Admin-Token if ADMIN_TOKEN is set)
   GET  /health
   /                -> web display (web/index.html)
+  /weather         -> weather station page (same as /?view=weather)
   /settings.html   -> settings page
   /card/*          -> Home Assistant Lovelace card files (same renderer as the website)
 
@@ -257,6 +258,7 @@ def make_app() -> web.Application:
     app.router.add_route("OPTIONS", "/api/{tail:.*}", a.h_health)
     app.router.add_get("/health", a.h_health)
     app.router.add_get("/", a.h_index)
+    app.router.add_get("/weather", lambda r: web.HTTPFound("/?view=weather" + ("&" + r.query_string if r.query_string else "")))
     app.router.add_static("/", web_dir, show_index=False)
     app["state"] = a
     return app

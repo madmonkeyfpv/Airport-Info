@@ -140,9 +140,11 @@ _NOT_PLACES = {"TDA", "TRA", "BVLOS", "VLOS", "UAS", "RPAS", "SUA", "ATZ", "CTR"
 
 
 def _place(text: str) -> str:
-    for m in re.finditer(r"\(([A-Z][A-Z ,.'/-]{2,40})\)", text.upper()):
-        if m[1].strip() not in _NOT_PLACES and len(m[1].strip()) > 3:
-            return m[1].strip().title()
+    for m in re.finditer(r"\(([A-Z][A-Z\s,.'/-]{2,50})\)", text.upper()):
+        name = " ".join(m[1].split())
+        if name not in _NOT_PLACES and len(name) > 3:
+            return " ".join(w if w.rstrip(",") in ("RAF", "MOD", "HMS", "USAF", "UK", "AAC") else w.title()
+                            for w in name.split())
     return ""
 
 
@@ -188,7 +190,8 @@ def build_panel(static_areas: list[dict], airspace_notams: list[dict], pinned: l
         used_notams.add(n["id"])
         ident = n["area_ids"][0] if n["area_ids"] else ""
         tm = re.search(r"\b(EG[TR][RA]\d{3}[A-Z]?)\b", n["text"].upper())
-        ident = ident or (tm[1][2:] if tm else "")
+        named = re.search(r"\b(TRA\s?\d{3}[A-Z]?|ARA\s?\d{1,3}[A-Z]?|[A-Z]{2,5}MTA|MTA\s?\d+)\b", n["text"].upper())
+        ident = ident or (tm[1][2:] if tm else named[1] if named else "")
         label = {"RD": "TEMP DANGER AREA", "RT": "TEMP RESTRICTED AREA", "RA": "RESERVED AREA",
                  "RM": "TEMP RESERVED AREA", "RR": "RESTRICTED AREA"}.get(n["code23"], "TEMP AIRSPACE")
         short = {"RD": "TDA", "RT": "RA(T)", "RA": "TRA", "RM": "TRA", "RR": "RA"}.get(n["code23"], "TEMP")
@@ -198,13 +201,16 @@ def build_panel(static_areas: list[dict], airspace_notams: list[dict], pinned: l
             "upper": n.get("upper") or "", "lower": n.get("lower") or "",
             "start": n["next_start"], "end": n["next_end"], "notam": n["id"],
             "notam_activated": True, "label": label,
+            "lower_fl": int(n["lower_fl"]) if str(n.get("lower_fl", "")).isdigit() else 0,
         })
 
     pinned_u = [p.upper().replace("EG", "", 1) if p.upper().startswith("EG") else p.upper() for p in pinned or []]
     chosen = [i for p in pinned_u for i in items if i["id"].upper() == p][:cards]
     rest = [i for i in items if i not in chosen]
     # Live activity close in jumps the queue; otherwise nearest first (stable signage).
-    rest.sort(key=lambda i: (0 if i["state"] in ("active", "scheduled") and i["distance_nm"] <= warning_range_nm else 1,
+    # Upper airspace (base FL195+) is irrelevant to most aerodrome users, so it ranks last.
+    rest.sort(key=lambda i: (1 if i.get("lower_fl", 0) >= 195 else 0,
+                             0 if i["state"] in ("active", "scheduled") and i["distance_nm"] <= warning_range_nm else 1,
                              i["distance_nm"]))
     while len(chosen) < cards and rest:
         chosen.append(rest.pop(0))
