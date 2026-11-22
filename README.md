@@ -7,7 +7,7 @@ Runs as a **website** and as a **Home Assistant** dashboard (same board in both)
 ![Weather station](docs/screenshots/weather_egsu.jpg)
 
 Two screens: the **information board** (`/`) and the **weather station** (`/weather`: wind rose with the
-airfield's runways, QNH/QFE, density altitude, crosswind components). `/?view=rotate` alternates them.
+airfield's runways, QNH/QFE, RVR, crosswind components). `/?view=rotate` alternates them.
 A **radio strip** lists the airfield's frequencies with an open/closed estimate (from NOTAMs and optional
 opening hours) and the current ATIS letter where a real text ATIS exists. Default airport: **EGSU Duxford**.
 
