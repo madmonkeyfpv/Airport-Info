@@ -112,3 +112,13 @@ def test_weather_derived_and_runways():
     egsu = airports.resolve("EGSU")
     assert {r["le"] for r in egsu["runways"]} == {"06", "06L"}
     assert 55 < egsu["runways"][0]["le_hdg"] < 65
+
+
+def test_rvr():
+    from airport_info.weather import parse_rvr
+    r = parse_rvr("METAR EGLL 230650Z 24004KT 0300 R27L/0550N R27R/P1500U R09/0400V0800D FG VV001 05/05 Q1020")
+    assert [x["runway"] for x in r] == ["27L", "27R", "09"]
+    assert r[0]["min_m"] == 550 and r[0]["tendency"] == "steady"
+    assert r[1]["min_qual"] == "above" and r[1]["tendency"] == "up"
+    assert r[2]["max_m"] == 800 and r[2]["tendency"] == "down"
+    assert parse_rvr("METAR EGSS 222250Z AUTO 03006KT 9999 NCD 02/00 Q1019") == []

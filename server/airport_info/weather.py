@@ -27,6 +27,24 @@ def _visibility(raw: str, cover: str | None) -> str:
     return f"{m[1]} SM" if m else ""
 
 
+_RVR = re.compile(r"\bR(\d{2}[LRC]?)/([PM])?(\d{4})(?:V([PM])?(\d{4}))?(FT)?([UDN])?(?=\s|$)")
+
+
+def parse_rvr(raw: str) -> list[dict]:
+    """METAR RVR groups, e.g. R24/0600N, R27L/P1500, R09/0400V0800U (metres unless FT)."""
+    body = raw.split(" RMK")[0]
+    out = []
+    for m in _RVR.finditer(body):
+        out.append({
+            "runway": m[1],
+            "min_m": int(m[3]), "min_qual": {"P": "above", "M": "below"}.get(m[2] or "", ""),
+            "max_m": int(m[5]) if m[5] else None, "max_qual": {"P": "above", "M": "below"}.get(m[4] or "", ""),
+            "feet": bool(m[6]),
+            "tendency": {"U": "up", "D": "down", "N": "steady"}.get(m[7] or "", ""),
+        })
+    return out
+
+
 def _sky(m: dict, raw: str) -> str:
     if " CAVOK" in raw:
         return "CAVOK"
@@ -78,6 +96,7 @@ def _summarise(m: dict, airport: dict) -> dict:
         "visibility_text": _visibility(raw, m.get("cover")),
         "sky": _sky(m, raw),
         "weather": m.get("wxString") or "",
+        "rvr": parse_rvr(raw),
         "clouds": m.get("clouds") or [],
         **derived(m.get("altim"), m.get("temp"), m.get("dewp"), airport.get("elev")),
         "source_icao": m.get("icaoId"),
