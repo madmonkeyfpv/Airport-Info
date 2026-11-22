@@ -1,7 +1,7 @@
 // Airport Info — weather station page (wind rose with runways + current conditions).
 // Pure renderer like board.js: renderWeather(data) -> HTML, WEATHER_CSS -> stylesheet.
 // Shared by the website (index.html ?view=weather|rotate) and the Home Assistant card (view: weather|rotate).
-import { esc, fmt, renderRadio } from './board.js';
+import { esc, fmt, renderRadio, overrideBadge } from './board.js';
 
 const C = 200;           // SVG centre (viewBox 0 0 400 400)
 const R_RING = 178;      // outer ring radius
@@ -187,6 +187,7 @@ export function renderWeather(data, opts = {}) {
       ${compHtml}
       ${cfg.show_radio === false ? '' : `<div class="aib-screen-inline">${renderRadio(data.radio, { F, now, cfg }, true)}</div>`}
       <div class="wx-raw">${wx?.raw ? esc(wx.raw) : ''}</div>
+      ${overrideBadge(data) ? `<div class="wx-foot">${overrideBadge(data)}</div>` : ''}
       <div class="wx-foot">INFORMATION ONLY · NOT FOR OPERATIONAL USE · OBTAIN AN OFFICIAL BRIEFING</div>
     </section>
   </div>`;
@@ -253,6 +254,7 @@ export const WEATHER_CSS = `
 .aib-screen-inline { --panel-head: #1c3045; --card: #182339; --card2: #1d2a42; --line: #2a3a55; --muted: #a9bfd4; --dim: #7f95ab;
   --sky: #7dd3fc; --green: #86efac; --red: #f16b68; --orange: #f0a34c; }
 .wx-raw { font-family: "JetBrains Mono", Consolas, monospace; font-size: clamp(10px, .75vw, 14px); color: var(--dim); overflow-wrap: anywhere; }
+.wx-foot .aib-override { padding: 1px 8px; border-radius: 4px; background: #f0a34c; color: #08111e; font-weight: 800; }
 .wx-foot { font-size: clamp(8px, .6vw, 11px); font-weight: 700; letter-spacing: .06em; color: #c7a76a; }
 .wx-screen .aib-cat { padding: 1px 8px; border-radius: 4px; font-weight: 800; color: #08111e; background: #86efac; font-size: .8em; }
 .wx-screen .aib-cat.mvfr { background: #60a5fa; } .wx-screen .aib-cat.ifr { background: #f16b68; } .wx-screen .aib-cat.lifr { background: #e879f9; }

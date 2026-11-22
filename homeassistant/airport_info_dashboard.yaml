@@ -11,7 +11,8 @@ views:
     cards:
       - type: custom:airport-info-card
         server: http://homeassistant.local:8080   # Airport Info add-on / server URL
-        # airport: EGSU                            # optional: override the server's saved airport
+        # Airport comes from the settings page so every screen stays in sync. Do NOT set `airport:` here
+        # unless this screen should be pinned to a different airport (a warning is then shown on it).
         full_screen: true                          # fixed full-viewport TV layout (hides HA chrome)
         view: board                                # board | weather | rotate (alternates every rotate_seconds)
   - title: Airfield Weather

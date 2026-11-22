@@ -84,6 +84,18 @@ async function load() {
 }
 
 setInterval(() => { if (data) { tickClocks(app, data.settings); tickWeatherClock(app); } }, 1000);
+
+// Keep every screen in sync with the settings page: poll a tiny fingerprint and reload the
+// moment the saved settings (airport, view, units…) change, instead of waiting for the next refresh.
+let checking = false;
+setInterval(async () => {
+  if (!data || checking || document.hidden) return;
+  checking = true;
+  try {
+    const r = await fetch(`${API}/api/settings/version`, { cache: 'no-store' });
+    if (r.ok && (await r.json()).version !== data.settings_version) { clearTimeout(rotateTimer); rotateTimer = null; await load(); }
+  } catch {} finally { checking = false; }
+}, 5000);
 // Re-render every 30 s so "minutes remaining" and urgency colours stay current between fetches.
 setInterval(() => render(), 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });

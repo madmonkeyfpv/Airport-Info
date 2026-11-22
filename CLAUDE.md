@@ -125,6 +125,15 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   manage KV/D1/R2/Hyperdrive and search docs, but CANNOT deploy Worker code, Pages, Tunnels or DNS.
   Deployment options discussed with owner — see Next steps.
 
+- **2026-11-22** — Screen sync: all screens (board, /weather, HA card) follow the settings page. Server exposes
+  `/api/settings/version` (sha1 fingerprint of saved settings; also in /api/data as `settings_version`);
+  clients poll it every 5 s and reload immediately on change (verified end-to-end: board, weather page and HA
+  card all switched EGSU→GLO within ~5 s). A screen with `?airport=` / card `airport:` is deliberately pinned and
+  shows an orange "SCREEN PINNED TO … · NOT FOLLOWING SETTINGS PAGE" badge (`overrides` in /api/data). 15 tests.
+- Cloudflare decision pending from owner: (A) port backend to Workers (needs Workers Paid $5/mo: free plan 10 ms
+  CPU can't parse the 2 MB PIB; FlightAware may block CF IPs — test first) or (B) Cloudflare Tunnel from the HA
+  box (free, minimal code). Deploy from cloud session possible with a CF API token via request_credential + wrangler.
+
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
    Duxford hours now built in (data/opening_hours.json, from IWM pilot info; "mid-month" read as the 15th —

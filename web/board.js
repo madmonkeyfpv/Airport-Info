@@ -275,6 +275,12 @@ export function renderRadio(radio, ctx, compact = false) {
   </div>`;
 }
 
+export function overrideBadge(data) {
+  if (!(data.overrides || []).includes('airport')) return '';
+  const ap = data.airport;
+  return `<span class="aib-override">SCREEN PINNED TO ${esc(ap.icao || ap.iata)} · NOT FOLLOWING SETTINGS PAGE</span>`;
+}
+
 // ---- header ----------------------------------------------------------------------------
 function renderHeader(data, ctx) {
   const { F, now, cfg } = ctx;
@@ -336,6 +342,7 @@ export function renderBoard(data, opts = {}) {
     <span>FLIGHTS: FLIGHTAWARE ${esc(upd(src.flightaware?.updated))}${src.flightaware?.error ? ' ⚠' : ''}</span>
     <span>NOTAM: NATS AIS ${esc(upd(src.notam?.updated))}${src.notam?.error ? ' ⚠' : ''}</span>
     <span>WX: ${wx ? `METAR ${esc(wx.source_icao)} ${esc(F.zulu(d(wx.observed)))}` : 'UNAVAILABLE'}</span>
+    ${overrideBadge(data)}
     <span class="aib-footer-warn">INFORMATION ONLY · NOT FOR OPERATIONAL USE · ALWAYS CHECK OFFICIAL SOURCES</span>
   </footer>`;
 
@@ -596,6 +603,7 @@ export const BOARD_CSS = `
 .aib-radio.compact .aib-radio-note { max-width: none; text-align: left; }
 
 /* footer */
+.aib-override { padding: 1px 8px; border-radius: 4px; background: var(--orange); color: #08111e; font-weight: 800; }
 .aib-footer { flex: 0 0 auto; display: flex; gap: 18px; align-items: center; padding: 5px 16px 7px; font-size: clamp(8px, .62vw, 12px); font-weight: 700; letter-spacing: .06em; color: var(--dim); }
 .aib-footer-warn { margin-left: auto; color: #c7a76a; }
 

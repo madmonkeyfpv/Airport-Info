@@ -8,7 +8,8 @@
 // Card config:
 //   type: custom:airport-info-card
 //   server: http://192.168.1.50:8080   # Airport Info server / add-on URL (required unless same origin)
-//   airport: EGBJ                        # optional – overrides the server's saved airport
+//   airport: EGBJ                        # optional – PINS this screen to another airport (it then no longer
+//                                        #   follows the settings page; a warning is shown on screen). Leave unset.
 //   full_screen: true                    # optional – fixed full-viewport kiosk layout (default true)
 //   view: board                          # optional – board | weather | rotate (alternate, rotate_seconds)
 //   settings:                            # optional – any server setting override
@@ -48,7 +49,7 @@ class AirportInfoCard extends HTMLElement {
   disconnectedCallback() { this._stop(); }
 
   _stop() {
-    clearTimeout(this._timer); clearTimeout(this._rotate); clearInterval(this._tick); clearInterval(this._rerender);
+    clearTimeout(this._timer); clearTimeout(this._rotate); clearInterval(this._tick); clearInterval(this._rerender); clearInterval(this._sync);
     this._rotate = null;
     if (this._stopScroll) this._stopScroll();
     this._timer = this._tick = this._rerender = this._stopScroll = null;
@@ -59,6 +60,18 @@ class AirportInfoCard extends HTMLElement {
     this._load();
     this._tick = setInterval(() => { if (this._data) { tickClocks(this._root, this._data.settings); tickWeatherClock(this._root); } }, 1000);
     this._rerender = setInterval(() => this._render(), 30000);
+    // Follow the settings page: reload as soon as the saved settings change (polls a tiny fingerprint).
+    this._sync = setInterval(async () => {
+      if (!this._data || this._checking) return;
+      this._checking = true;
+      try {
+        const r = await fetch(`${this._server}/api/settings/version`, { cache: 'no-store' });
+        if (r.ok && (await r.json()).version !== this._data.settings_version) {
+          clearTimeout(this._rotate); this._rotate = null;
+          await this._load();
+        }
+      } catch (e) { /* server unreachable: normal refresh will retry */ } finally { this._checking = false; }
+    }, 5000);
   }
 
   _query() {
