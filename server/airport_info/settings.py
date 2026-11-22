@@ -21,7 +21,9 @@ DEFAULTS = {
     "refresh_seconds": 60,        # display refresh interval
     "theme": "navy",              # navy | midnight | high-contrast
     "show_radio": True,           # radio strip: frequencies, estimated status, D-ATIS letter where available
-    "service_hours": "",          # published opening hours, UK local, e.g. "0900-1700" or "MON-FRI 0800-1800, SAT SUN 0900-1700"
+    # Opening hours override, UK local. Blank = use data/opening_hours.json for the airport (EGSU included).
+    # Formats: "0900-1700", "MON-FRI 0800-1800, SAT SUN 0900-1700", "15MAR-15OCT 1000-1800; 16OCT-14MAR 1000-1600", "H24".
+    "service_hours": "",
     "view": "board",              # board | weather | rotate  (rotate alternates both)
     "rotate_seconds": 30,         # time on each page when view = rotate
 }

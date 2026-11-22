@@ -267,7 +267,7 @@ export function renderRadio(radio, ctx, compact = false) {
     </div>`);
   }
   const note = radio.notams_unavailable ? 'NOTAM FEED UNAVAILABLE · STATUS UNKNOWN'
-    : `STATUS ESTIMATED FROM NOTAMS${radio.hours_configured ? ' &amp; PUBLISHED HOURS' : ''}`;
+    : `${radio.ppr ? '<b>PPR REQUIRED</b><br>' : ''}STATUS ESTIMATED FROM NOTAMS${radio.hours_configured ? ' &amp; PUBLISHED HOURS' : ''}`;
   return `<div class="aib-radio ${compact ? 'compact' : ''}">
     <div class="aib-radio-title">${ICON.radio}<span>RADIO</span></div>
     <div class="aib-radio-chips">${chips.join('')}</div>
@@ -589,7 +589,8 @@ export const BOARD_CSS = `
 .aib-atis-l { width: clamp(24px, 1.9vw, 36px); height: clamp(24px, 1.9vw, 36px); display: grid; place-items: center; border-radius: 6px; background: var(--sky); color: #08111e; font-size: clamp(16px, 1.35vw, 26px); font-weight: 800; }
 .aib-atis-letter.stale .aib-atis-l { background: #7f95ab; }
 .aib-atis-meta { font-size: clamp(9px, .66vw, 12px); font-weight: 800; color: var(--muted); letter-spacing: .04em; line-height: 1.2; max-width: 11em; }
-.aib-radio-note { flex: 0 0 auto; align-self: center; max-width: 9em; font-size: clamp(8px, .58vw, 11px); font-weight: 700; color: var(--dim); letter-spacing: .05em; line-height: 1.25; text-align: right; }
+.aib-radio-note b { color: var(--amber); }
+.aib-radio-note { flex: 0 0 auto; align-self: center; max-width: 15em; font-size: clamp(8px, .58vw, 11px); font-weight: 700; color: var(--dim); letter-spacing: .05em; line-height: 1.25; text-align: right; }
 .aib-radio.compact { padding: 0; flex-wrap: wrap; } .aib-radio.compact .aib-radio-title { display: none; }
 .aib-radio.compact .aib-radio-chips { flex-wrap: wrap; } .aib-radio.compact .aib-radio-chip { flex: 1 1 45%; }
 .aib-radio.compact .aib-radio-note { max-width: none; text-align: left; }

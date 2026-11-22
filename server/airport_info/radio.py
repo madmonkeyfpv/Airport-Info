@@ -10,6 +10,8 @@
 """
 from __future__ import annotations
 
+import json
+import pathlib
 import re
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -19,6 +21,14 @@ from bs4 import BeautifulSoup
 from .notams import _expand_weekday_ranges, activity
 
 LONDON = ZoneInfo("Europe/London")
+_HOURS_FILE = pathlib.Path(__file__).parent / "data" / "opening_hours.json"
+
+
+def published_hours(icao: str | None) -> dict | None:
+    try:
+        return json.loads(_HOURS_FILE.read_text()).get((icao or "").upper())
+    except (OSError, ValueError):
+        return None
 ATIS_URL = "https://atis.guru/atis/"
 
 SERVICE_ORDER = ["atis", "afis", "ag", "twr", "app", "rdr", "dir", "gnd", "del", "other"]
@@ -65,30 +75,52 @@ def group_frequencies(freqs: list[dict]) -> list[dict]:
 
 # --- opening hours (local time) ------------------------------------------------------
 
+MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+_SEASON = re.compile(r"\b(\d{1,2})\s?(" + "|".join(MONTHS) + r")\s*-\s*(\d{1,2})\s?(" + "|".join(MONTHS) + r")\b")
+
+
+def _in_season(d, season) -> bool:
+    if not season:
+        return True
+    (m1, d1), (m2, d2) = season
+    x = (d.month, d.day)
+    return (m1, d1) <= x <= (m2, d2) if (m1, d1) <= (m2, d2) else (x >= (m1, d1) or x <= (m2, d2))
+
+
 def hours_windows(text: str, now: datetime, days: int = 8) -> list[tuple[datetime, datetime]] | None:
-    """'0900-1700' or 'MON-FRI 0800-1800, SAT SUN 0900-1700' in UK local time -> UTC windows. None if unset/invalid."""
+    """Opening hours in UK local time -> UTC windows. None if unset/invalid.
+
+    Examples: '0900-1700' · 'MON-FRI 0800-1800, SAT SUN 0900-1700' · 'H24'
+    Seasonal: '15MAR-15OCT 1000-1800; 16OCT-14MAR 1000-1600' (a season prefix applies to the
+    clauses that follow it until the next season prefix; clauses are separated by ',' or ';').
+    """
     text = (text or "").upper().strip()
     if not text:
         return None
     if text in ("H24", "24H", "24/7"):
         return [(now - timedelta(days=1), now + timedelta(days=days))]
     text = _expand_weekday_ranges(text)
-    specs, current = [], set()
+    names = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+    specs, current, season = [], set(), None
     for part in re.split(r"[,;]", text):
-        names = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+        sm = _SEASON.search(part)
+        if sm:
+            season = ((MONTHS.index(sm[2]) + 1, int(sm[1])), (MONTHS.index(sm[4]) + 1, int(sm[3])))
+            current = set()
+            part = part[:sm.start()] + part[sm.end():]
         wd_idx = {i for i, d in enumerate(names) if re.search(rf"\b{d}\b", part)}
         if wd_idx:
             current = wd_idx
         for a, b in re.findall(r"(\d{4})\s*-\s*(\d{4})", part):
-            specs.append((set(current) if current else set(range(7)), a, b))
+            specs.append((set(current) if current else set(range(7)), a, b, season))
     if not specs:
         return None
     local_now = now.astimezone(LONDON)
     out = []
     for i in range(-1, days):
         d = (local_now + timedelta(days=i)).date()
-        for wds, a, b in specs:
-            if d.weekday() not in wds:
+        for wds, a, b, season in specs:
+            if d.weekday() not in wds or not _in_season(d, season):
                 continue
             s = datetime(d.year, d.month, d.day, int(a[:2]) % 24, int(a[2:]), tzinfo=LONDON)
             e = datetime(d.year, d.month, d.day, int(b[:2]) % 24, int(b[2:]), tzinfo=LONDON)
@@ -162,6 +194,9 @@ def build_radio(airport: dict, raw_notams: list[dict], now: datetime, service_ho
             continue
         relevant.append((n, effects, text, act))
 
+    published = published_hours(icao)
+    if not service_hours and published:
+        service_hours = published["hours"]
     windows = hours_windows(service_hours, now)
     for g in groups:
         status, until, note, notam_id = "published", None, "", None
@@ -202,6 +237,8 @@ def build_radio(airport: dict, raw_notams: list[dict], now: datetime, service_ho
         "groups": groups,
         "hours_configured": windows is not None,
         "service_hours": service_hours,
+        "hours_source": "settings" if service_hours and not (published and service_hours == published["hours"]) else ("published" if published else None),
+        "ppr": published.get("ppr") if published else None,
         "atis": atis,
         "has_atis_frequency": any(g["service"] == "atis" for g in groups),
     }
