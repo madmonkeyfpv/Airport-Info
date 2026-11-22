@@ -43,9 +43,13 @@ web/weather.js             SHARED weather-station renderer: renderWeather(data) 
 web/index.html             website / kiosk page (board.js + weather.js; view=board|weather|rotate)
 web/settings.html          settings UI (airport autocomplete, units, airspace pins, theme)
 web/card/airport-info-card.js  Home Assistant Lovelace card (imports ../board.js -> identical board)
-homeassistant/             dashboard YAML, optional REST-sensor package, HA setup README
-airport_info_addon/        Home Assistant add-on (repository.yaml at repo root makes repo an add-on repo)
-Dockerfile, docker-compose.yml   website/server container
+homeassistant/             dashboard YAML, optional REST-sensor package, short README pointing to the guide
+docs/SETUP_HOME_ASSISTANT.md   USER-FACING install guide for Home Assistant (keep it current with any change!)
+config.yaml, build.yaml,   HOME ASSISTANT ADD-ON lives at the REPO ROOT (repository.yaml + config.yaml):
+  run.sh, DOCS.md          the repo is both the add-on repository and the add-on; build context = whole repo
+Dockerfile                 ONE image for plain Docker (default BUILD_FROM python:3.13-slim) and the add-on
+                           (build.yaml → ghcr.io/home-assistant/{arch}-base-python:3.13-alpine3.22, tags verified)
+docker-compose.yml         plain Docker deployment (settings persist in ./data)
 docs/screenshots/          rendered screenshots of the prototype (TV, phone, HA card, settings)
 tools/build_airports.py    regenerate the UK airport DB
 ```
@@ -91,8 +95,13 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
 ## Known limitations / ideas
 - FlightAware markup can change; tests in `server/tests` catch parser breakage using fixtures. FlightAware shows only ~20 rows per table; small GA fields often have no filed flight plans (empty state is normal).
 - Danger areas without NOTAM-activation have published AIP hours that YAIXM doesn't carry → shown as "AIP HOURS" (not live). Possible upgrade: parse NATS eAIP ENR 5.1 hours, or the UK AUP/UUP.
-- Docker image not built in the cloud session (no Docker daemon); Dockerfile is straightforward python:3.12-slim. Add-on downloads source from GitHub at build → repo must be public for the add-on.
-- HA over https needs the server on https too (mixed content) — see homeassistant/README.md.
+- Docker image / add-on build NOT yet tested on a real HA box (no Docker daemon in cloud sessions). If the owner
+  reports a Supervisor build error, fix Dockerfile/build.yaml. Add-on bumps: raise `version` in config.yaml.
+- Repo is PRIVATE (github.com returns 404 publicly) → guide uses "Method B" local add-on (copy repo into
+  /addons/airport_info via Samba). Method A (add-on repository URL) only works if the owner makes the repo public.
+- HA ingress (sidebar panel) works over HA's https; all web URLs are RELATIVE (`api/...`, `./?view=weather`) so
+  the site works under `/api/hassio_ingress/<token>/` — never reintroduce absolute `/api/...` paths in web/*.html.
+  The dashboard card loads from http://<HA-IP>:8080, so it needs HA opened over local http (mixed content).
 - Public website hosting not yet deployed (needs a host that runs the Python container, e.g. a VPS/Fly.io/Render; set ADMIN_TOKEN).
 
 ## Status / changelog
@@ -134,10 +143,17 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   CPU can't parse the 2 MB PIB; FlightAware may block CF IPs — test first) or (B) Cloudflare Tunnel from the HA
   box (free, minimal code). Deploy from cloud session possible with a CF API token via request_credential + wrangler.
 
+- **2026-11-22** — Hosting decision: owner chose to KEEP current setup (HA add-on / local Docker). Cloudflare
+  Workers and Oracle Always Free were evaluated (Oracle: $0 but idle-reclaim risk, 2026 allowance cut, card needed;
+  Cloudflare: $5/mo Workers Paid + JS rewrite) — parked. Moved the add-on to the repo root so it builds from local
+  files (private repo OK as a local add-on), added ingress (sidebar panel), relative web URLs, and wrote
+  docs/SETUP_HOME_ASSISTANT.md. Ingress verified with a prefix-stripping proxy simulation (board, /weather redirect,
+  settings save all OK).
+
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
    Duxford hours now built in (data/opening_hours.json, from IWM pilot info; "mid-month" read as the 15th —
    confirm exact season change dates with Duxford ATC 01223 833376 if precision matters).
-2. Deploy: run add-on or Docker on the HA host; add card resource; open dashboard on the TVs.
-3. Choose public hosting for the website and set `ADMIN_TOKEN`.
+2. Owner installs on HA following docs/SETUP_HOME_ASSISTANT.md (Method B). Fix any Supervisor build errors reported.
+3. Public hosting parked (owner: "keep it as is for now"). Options documented above if revisited.
 4. Optional: AIP published-hours parsing for danger areas; more NOTAM title rules from real-world feedback.

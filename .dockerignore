@@ -3,3 +3,6 @@ reference
 data
 server/data
 **/__pycache__
+docs
+server/tests
+.github

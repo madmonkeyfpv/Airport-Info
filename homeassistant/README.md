@@ -1,42 +1,15 @@
-# Home Assistant setup
+# Home Assistant files
 
-The display is a custom Lovelace card that renders exactly the same board as the website
-(`web/board.js` is shared). Data comes from the Airport Info server.
+**Start here → [docs/SETUP_HOME_ASSISTANT.md](../docs/SETUP_HOME_ASSISTANT.md)** (full step-by-step install guide).
 
-## 1. Run the server
-Pick one:
-- **Add-on** (HA OS / Supervised): add this GitHub repo as an add-on repository, install *Airport Info*, start it.
-  (Requires the repository to be public so the add-on can download the source.)
-- **Docker** anywhere on your network: `docker compose up -d` from the repo root.
-- **Python**: `pip install -r server/requirements.txt && PYTHONPATH=server python -m airport_info.app`
+| File | What it is |
+|---|---|
+| `airport_info_dashboard.yaml` | Full-screen dashboard with two views (board, airfield weather) using the custom card |
+| `airport_info_package.yaml` | Optional REST sensors for automations (temperature, inbound count, next arrival, NOTAMs, airspace, ATIS) |
 
-Open `http://<server>:8080/settings.html` and choose the airport (ICAO e.g. `EGBJ` or IATA e.g. `GLO`).
+The add-on itself is defined at the repository root (`config.yaml`, `build.yaml`, `Dockerfile`, `run.sh`, `DOCS.md`),
+so the repository is both an add-on repository and the add-on. The card (`web/card/airport-info-card.js`) and the
+website share one renderer (`web/board.js`, `web/weather.js`), so they always look identical.
 
-## 2. Add the card resource
-Settings → Dashboards → ⋮ → Resources → Add:
-- URL: `http://<server>:8080/card/airport-info-card.js`
-- Type: JavaScript module
-
-> If Home Assistant is served over **https**, the browser blocks an http resource/API (mixed content).
-> Either put the server behind the same https reverse proxy, or copy `web/board.js` to
-> `/config/www/airport-info/board.js` (and `web/weather.js` → `/config/www/airport-info/weather.js`) and `web/card/airport-info-card.js` to
-> `/config/www/airport-info/card/airport-info-card.js`, use resource `/local/airport-info/card/airport-info-card.js`,
-> and set `server:` to an https URL of the server.
-
-## 3. Add the dashboard
-Create a dashboard from `airport_info_dashboard.yaml` (panel view, `full_screen: true` like the original kiosk).
-Card options: `server`, `airport`, `view` (`board` | `weather` | `rotate`), `rotate_seconds`, `full_screen`, `height`, `settings` (any server setting).
-For a dedicated weather TV use `view: weather`; for one screen alternating both use `view: rotate`.
-
-## Keeping screens in sync
-Every screen (board, weather page, HA cards) follows the airport and options saved on the settings page and
-switches within ~5 seconds of saving. Don't set `airport:` on a card unless that screen should be pinned to a
-different airport — pinned screens show an orange warning in the footer.
-
-## 4. Optional sensors
-`airport_info_package.yaml` creates REST sensors (temperature, inbound count, next arrival time,
-NOTAM count, airspace state) for automations.
-
-## Kiosk tips
-- Browser kiosk without HA: just open `http://<server>:8080/?kiosk` full screen.
-- Several screens can show different airports: `?airport=EGLC`, or `airport:` in the card config.
+Keeping screens in sync: every screen follows the settings page within ~5 s. Don't set `airport:` on a card
+unless that screen should be pinned to a different airport (pinned screens show an orange warning).

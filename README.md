@@ -19,7 +19,8 @@ PYTHONPATH=server python -m airport_info.app
 ```
 or `docker compose up -d --build`.
 
-Home Assistant: see [homeassistant/README.md](homeassistant/README.md) (add-on, card resource, dashboard YAML).
+**Home Assistant:** follow the step-by-step guide → [docs/SETUP_HOME_ASSISTANT.md](docs/SETUP_HOME_ASSISTANT.md)
+(add-on with sidebar panel, TV/kiosk URLs, full-screen dashboard card, optional sensors).
 
 ## Data
 - Flights: FlightAware airport board (web scrape)

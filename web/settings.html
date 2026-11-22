@@ -108,6 +108,7 @@ const ac = document.getElementById('ac');
 const chosen = document.getElementById('chosen');
 const tokenInput = document.getElementById('token');
 const API = (new URLSearchParams(location.search).get('api') || '').replace(/\/$/, '');
+const BASE = API ? API + '/' : '';  // relative URLs: works behind Home Assistant ingress
 try { tokenInput.value = localStorage.getItem('aib-admin-token') || ''; } catch {}
 
 const say = (t, ok) => { msg.textContent = t; msg.className = ok ? 'ok' : 'err'; };
@@ -131,12 +132,12 @@ function updatePreview() {
 }
 
 async function lookup(code) {
-  const r = await fetch(`${API}/api/airports?q=${encodeURIComponent(code)}`);
+  const r = await fetch(`${BASE}api/airports?q=${encodeURIComponent(code)}`);
   return r.ok ? r.json() : [];
 }
 
 async function load() {
-  const s = await (await fetch(`${API}/api/settings`)).json();
+  const s = await (await fetch(`${BASE}api/settings`)).json();
   for (const k of fields) {
     const el = f.elements[k];
     if (!el) continue;
@@ -178,8 +179,8 @@ f.addEventListener('submit', async e => {
   const [a] = await lookup(body.airport);
   if (!a || (a.icao !== body.airport && a.iata !== body.airport)) { say(`“${body.airport}” is not a recognised UK ICAO/IATA code — pick one from the list.`); return; }
   try { localStorage.setItem('aib-admin-token', tokenInput.value); } catch {}
-  const r = await fetch(`${API}/api/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tokenInput.value }, body: JSON.stringify(body) });
-  if (r.ok) say('Saved ✓ — displays update on their next refresh.', true);
+  const r = await fetch(`${BASE}api/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tokenInput.value }, body: JSON.stringify(body) });
+  if (r.ok) say('Saved ✓ — all screens switch within about 5 seconds.', true);
   else say('Could not save: ' + (await r.text()));
 });
 load().catch(err => say('Could not reach the server: ' + err.message));
