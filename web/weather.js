@@ -112,6 +112,16 @@ function components(wx, runways) {
   return ends.sort((a, b) => b.head - a.head);
 }
 
+function rvrText(wx) {
+  if (!wx) return '—';
+  if (!wx.rvr?.length) return `<span class="wx-muted">NOT REPORTED</span>`;
+  const unit = r => r.feet ? 'FT' : 'M';
+  const val = (n, q) => `${q === 'above' ? '>' : q === 'below' ? '<' : ''}${n}`;
+  const trend = { up: '↑', down: '↓', steady: '→' };
+  const src = wx.is_local ? '' : ` <small>${esc(wx.source_icao)}</small>`;
+  return wx.rvr.map(r => `<span class="wx-rvr">RWY ${esc(r.runway)} ${val(r.min_m, r.min_qual)}${r.max_m ? '–' + val(r.max_m, r.max_qual) : ''} ${unit(r)}${r.tendency ? ' ' + trend[r.tendency] : ''}</span>`).join('') + src;
+}
+
 export function renderWeather(data, opts = {}) {
   const cfg = { ...(data.settings || {}), ...(opts.settings || {}) };
   const now = opts.now || new Date();
@@ -168,7 +178,7 @@ export function renderWeather(data, opts = {}) {
         ${wx?.humidity !== undefined ? row('HUMIDITY', `${esc(wx.humidity)} %`) : ''}
         ${row('QNH', wx?.qnh ? `${esc(wx.qnh)} hPa <small>${esc(wx.qnh_inhg?.toFixed(2))} inHg</small>` : '—')}
         ${wx?.qfe ? row(`QFE <small>${esc(ap.elev)} FT</small>`, `${esc(wx.qfe)} hPa`) : ''}
-        ${row('DENSITY ALT', wx?.density_alt_ft !== undefined ? `${esc(wx.density_alt_ft.toLocaleString('en-GB'))} FT` : '—')}
+        ${row('RVR', rvrText(wx))}
         ${row('VISIBILITY', esc(wx?.visibility_text || '—'))}
         ${row('SKY CONDITION', esc(wx?.sky || '—'))}
         ${wx?.weather ? row('WEATHER', esc(wx.weather)) : ''}
@@ -230,6 +240,8 @@ export const WEATHER_CSS = `
 .wx-row { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: baseline; gap: 12px; padding: .75vh 0; }
 .wx-value { font-size: clamp(16px, 1.5vw, 30px); font-weight: 600; color: var(--val); overflow-wrap: anywhere; }
 .wx-value small { font-size: .62em; color: var(--dim); margin-left: 6px; }
+.wx-muted { color: var(--dim); font-size: .8em; }
+.wx-rvr { display: inline-block; margin-right: 14px; white-space: nowrap; }
 .wx-comps { display: flex; flex-wrap: wrap; gap: 8px; }
 .wx-comp { flex: 1 1 120px; padding: 8px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); }
 .wx-comp.best { border-color: #86efac; }

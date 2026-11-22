@@ -68,7 +68,7 @@ Screenshots: Playwright is preinstalled in cloud sessions (`require('playwright'
 | NOTAMs | `https://pibs.nats.co.uk/operational/pibs/PIB.xml` (~2 MB, all UK) | Cached 15 min globally. Aerodrome NOTAMs = ItemA contains ICAO. Obstacles and airspace/warning NOTAMs hidden by default (settings). Titles built from Q-code (Code23 subject / Code45 condition) + keywords. Item D schedules (e.g. `MON-FRI 0800-1600`, `SR-SS`, date lists) expanded to UTC windows → ACTIVE / UPCOMING. RWYCC triplets rendered as thirds (UK GRF/SNOWTAM). |
 | Local airspace cards | YAIXM UK airspace (`raw.githubusercontent.com/ahsparrow/airspace/master/airspace.yaml`, public domain, AIP ENR 5.1) + PIB R* NOTAMs | Areas within `airspace_range_nm`. State: NOTAM active → ACTIVE (pulse), future → SCHEDULED, `QRDCD` → COLD; else R/P → PERMANENT, D with NOTAM rule → COLD, other D → "AIP HOURS". NOTAM-only temporary areas (TDA/RA(T)/TRA) become cards too. Pins override auto (nearest; live activity within warning radius jumps the queue). |
 | "Other areas & nav warnings" bar | Remaining R* items + W* NOTAMs (drones, parachuting, gliding, models) within `warning_range_nm` | Replaces original "JPG MOAs / ATCAA" bar (no MOAs in UK). |
-| Temperature / wind / QNH / category | aviationweather.gov METAR JSON | If own METAR missing or >3 h old, nearest fresh METAR ≤40 NM, labelled "METAR EGxx · n NM". Cache 10 min. Server also derives QFE (elev/27 ft per hPa), pressure & density altitude, humidity, visibility text (metres/KM), sky layers, variable-wind range. |
+| Temperature / wind / QNH / category | aviationweather.gov METAR JSON | If own METAR missing or >3 h old, nearest fresh METAR ≤40 NM, labelled "METAR EGxx · n NM". Cache 10 min. Server also derives QFE (elev/27 ft per hPa), pressure & density altitude (API/sensors only — owner asked for RVR instead on the page), RVR groups (`rvr`, parsed from raw METAR), humidity, visibility text (metres/KM), sky layers, variable-wind range. |
 | Weather station page | same METAR + runways from OurAirports `runways.csv` (built into uk_airports.json) | Runway true heading computed from threshold coordinates. Wind shown TRUE (METAR is true; UK magnetic variation ≈ 0–2° so not converted — the original KIMS screen said MAG). Parallel runways placed by L/R suffix. Head/cross-wind per runway end, favoured runway = max headwind. |
 
 Mapping from original KIMS design → UK version: Fahrenheit → °C (setting), US local time → Europe/London
@@ -105,6 +105,14 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   designators, multi-line place names). 10 tests passing.
 
 - **2026-11-22** — Owner confirmed NATS PIB feed for NOTAMs.
+
+- **2026-11-22** — Weather page: DENSITY ALT row replaced by RVR (owner request). Shows each METAR RVR
+  group (runway, metres/feet, >/< qualifiers, ↑↓→ tendency) with source ICAO when not local; "NOT REPORTED"
+  otherwise (normal — RVR only appears when vis/RVR < 1500 m). 11 tests.
+- Open offer to owner (not yet answered): "Radio" strip = published frequencies (OurAirports
+  airport-frequencies.csv) + open/closed estimated from NOTAMs + ATIS letter only where real D-ATIS text exists
+  (atis.guru has EGLL; none for EGBB/EGSU). Duxford has no ATIS (A/G "Duxford Information" 122.075).
+  Never fabricate an ATIS letter. Listening to UK ATC audio without licence is illegal — don't transcribe.
 
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
