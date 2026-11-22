@@ -4,6 +4,7 @@ Endpoints
   GET  /api/data?airport=EGSU[&other setting overrides]  -> everything the display needs
   GET  /api/airports?q=glou                               -> airport search (UK)
   GET  /api/settings                                      -> current saved settings
+  GET  /api/settings/version                              -> settings fingerprint (screens poll every 5 s to stay in sync)
   POST /api/settings  (JSON body; header X-Admin-Token if ADMIN_TOKEN is set)
   GET  /health
   /                -> web display (web/index.html)
@@ -171,7 +172,7 @@ class App:
             return None, None, None  # no ATIS published: don't query
         return await self.cache.get(f"atis:{ap['icao']}", TTL["atis"], lambda: fetch_datis(self.session, ap["icao"]))
 
-    async def build(self, cfg: dict) -> dict:
+    async def build(self, cfg: dict, overrides=()) -> dict:
         ap = airports.resolve(cfg["airport"])
         if not ap:
             raise web.HTTPNotFound(text=f"Unknown UK airport code '{cfg['airport']}'. Use a 4-letter ICAO or 3-letter IATA code.")
@@ -197,6 +198,8 @@ class App:
         return {
             "version": __version__,
             "generated_at": now.isoformat(),
+            "settings_version": self.settings.version,
+            "overrides": sorted(overrides),  # settings this screen overrides via its URL / card config
             "settings": cfg,
             "airport": {**ap, "display_name": airports.display_name(ap), "timezone": "Europe/London"},
             "weather": wx,
@@ -216,10 +219,16 @@ class App:
     # --- handlers -------------------------------------------------------------------
     async def h_data(self, request):
         cfg = self.settings.effective(request.query)
-        return web.json_response(await self.build(cfg))
+        overrides = [k for k in request.query if k in self.settings.values and request.query[k] != ""]
+        return web.json_response(await self.build(cfg, overrides))
 
     async def h_airports(self, request):
         return web.json_response(airports.search(request.query.get("q", "")))
+
+    async def h_settings_version(self, _request):
+        resp = web.json_response({"version": self.settings.version, "airport": self.settings.values["airport"]})
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
 
     async def h_settings_get(self, _request):
         return web.json_response({**self.settings.values, "_admin_token_required": bool(self.admin_token)})
@@ -267,6 +276,7 @@ def make_app() -> web.Application:
     app.router.add_get("/api/data", a.h_data)
     app.router.add_get("/api/airports", a.h_airports)
     app.router.add_get("/api/settings", a.h_settings_get)
+    app.router.add_get("/api/settings/version", a.h_settings_version)
     app.router.add_post("/api/settings", a.h_settings_post)
     app.router.add_route("OPTIONS", "/api/{tail:.*}", a.h_health)
     app.router.add_get("/health", a.h_health)

@@ -161,3 +161,13 @@ def test_seasonal_hours_duxford():
     july = datetime(2026, 7, 1, 8, 0, tzinfo=timezone.utc)
     s, e = [x for x in hours_windows(h, july) if x[0] > july][0]
     assert s.isoformat() == "2026-07-01T09:00:00+00:00" and e.isoformat() == "2026-07-01T17:00:00+00:00"  # BST
+
+
+def test_settings_version_changes_on_save(tmp_path):
+    from airport_info.settings import Settings
+    s = Settings(tmp_path / "settings.json")
+    v0 = s.version
+    assert s.effective({})["airport"] == "EGSU"
+    s.update({"airport": "glo"})
+    assert s.version != v0 and s.values["airport"] == "GLO"
+    assert Settings(tmp_path / "settings.json").version == s.version  # stable across restarts

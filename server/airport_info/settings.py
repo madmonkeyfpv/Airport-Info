@@ -1,6 +1,7 @@
 """Persistent display settings (JSON file). Every key can also be overridden per request via query string."""
 from __future__ import annotations
 
+import hashlib
 import json
 import pathlib
 import threading
@@ -69,6 +70,12 @@ class Settings:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(json.dumps(self.values, indent=2))
             return dict(self.values)
+
+    @property
+    def version(self) -> str:
+        """Fingerprint of the saved settings. Screens poll it and reload as soon as it changes,
+        so every display (board, weather page, HA cards) switches airport together."""
+        return hashlib.sha1(json.dumps(self.values, sort_keys=True).encode()).hexdigest()[:12]
 
     def effective(self, query) -> dict:
         out = dict(self.values)

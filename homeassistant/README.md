@@ -28,6 +28,11 @@ Create a dashboard from `airport_info_dashboard.yaml` (panel view, `full_screen:
 Card options: `server`, `airport`, `view` (`board` | `weather` | `rotate`), `rotate_seconds`, `full_screen`, `height`, `settings` (any server setting).
 For a dedicated weather TV use `view: weather`; for one screen alternating both use `view: rotate`.
 
+## Keeping screens in sync
+Every screen (board, weather page, HA cards) follows the airport and options saved on the settings page and
+switches within ~5 seconds of saving. Don't set `airport:` on a card unless that screen should be pinned to a
+different airport — pinned screens show an orange warning in the footer.
+
 ## 4. Optional sensors
 `airport_info_package.yaml` creates REST sensors (temperature, inbound count, next arrival time,
 NOTAM count, airspace state) for automations.
