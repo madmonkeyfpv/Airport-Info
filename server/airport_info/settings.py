@@ -20,6 +20,8 @@ DEFAULTS = {
     "include_airspace_notams": False,
     "refresh_seconds": 60,        # display refresh interval
     "theme": "navy",              # navy | midnight | high-contrast
+    "show_radio": True,           # radio strip: frequencies, estimated status, D-ATIS letter where available
+    "service_hours": "",          # published opening hours, UK local, e.g. "0900-1700" or "MON-FRI 0800-1800, SAT SUN 0900-1700"
     "view": "board",              # board | weather | rotate  (rotate alternates both)
     "rotate_seconds": 30,         # time on each page when view = rotate
 }

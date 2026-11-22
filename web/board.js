@@ -39,6 +39,7 @@ const ICON = {
   shield: svg('<path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z" fill="currentColor"/>'),
   doc: svg('<path d="M6 2h8l5 5v15H6z" fill="currentColor" opacity=".9"/><path d="M9 12h7M9 16h7M9 8h3" stroke="#0b1626" stroke-width="1.8" stroke-linecap="round"/>'),
   clock: svg('<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.2" fill="none"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/>'),
+  radio: svg('<path d="M4 9a10 10 0 0 1 16 0M7 12a6 6 0 0 1 10 0M10 15a2.5 2.5 0 0 1 4 0" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/><circle cx="12" cy="18.5" r="1.8" fill="currentColor"/>'),
   wind: svg('<path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>'),
 };
 
@@ -226,6 +227,54 @@ function renderAirspaceSummary(panel, cfg) {
     <div class="aib-summary-state">${label}</div></div>`;
 }
 
+// ---- radio strip -----------------------------------------------------------------------
+export function renderRadio(radio, ctx, compact = false) {
+  if (!radio) return '';
+  const { F, now } = ctx;
+  const groups = radio.groups || [];
+  if (!groups.length && !radio.atis) return '';
+  const max = compact ? 4 : 6;
+  const status = g => {
+    const u = d(g.until);
+    const far = u && u - now > 6 * 86400000;
+    switch (g.status) {
+      case 'open': return `<span class="aib-rs open">OPEN${u && !far ? ` · UNTIL ${esc(F.time(u))}` : far ? ' · H24' : ''}</span>`;
+      case 'closed': return `<span class="aib-rs closed">CLOSED${g.note === 'NOTAM' ? ' · NOTAM' : ''}${u && !far ? ` · ${g.note === 'NOTAM' ? 'UNTIL' : 'OPENS'} ${esc(F.time(u))}${F.relDay(u, now) !== 'TODAY' ? ' ' + esc(F.relDay(u, now)) : ''}` : ''}</span>`;
+      case 'limited': return `<span class="aib-rs limited">HOURS CHANGED · NOTAM</span>`;
+      default: return `<span class="aib-rs published">${g.note === 'CLOSES' && u ? `CLOSES ${esc(F.time(u))} · NOTAM` : 'NO NOTAM CHANGES'}</span>`;
+    }
+  };
+  const closingSoon = g => g.note === 'CLOSES' && g.until && g.status !== 'published'
+    ? `<span class="aib-rs limited">CLOSES ${esc(F.time(d(g.until)))}</span>` : '';
+  const atisReports = radio.atis?.reports || [];
+  const atisChip = g => {
+    const letters = atisReports.map(r => `<div class="aib-atis-letter ${r.stale ? 'stale' : ''}" title="${esc(r.text)}">
+        <div class="aib-atis-l">${esc(r.letter)}</div>
+        <div class="aib-atis-meta">${r.kind !== 'ATIS' ? esc(r.kind.slice(0, 3)) + ' · ' : ''}${r.runway ? 'RWY ' + esc(r.runway) + ' · ' : ''}${esc(F.zulu(d(r.received)))}${r.stale ? ' · MAY BE OUT OF DATE' : ''}</div>
+      </div>`).join('');
+    return `<div class="aib-radio-chip atis">
+      <div class="aib-radio-name">${esc(g ? g.name : 'ATIS')}</div>
+      <div class="aib-radio-main">${g ? `<span class="aib-radio-freq">${esc(g.freqs.slice(0, 2).join(' / '))}</span>` : ''}${letters || '<span class="aib-rs published">NO TEXT ATIS FEED · LISTEN ON FREQUENCY</span>'}</div>
+    </div>`;
+  };
+  const chips = [];
+  const atisGroup = groups.find(g => g.service === 'atis');
+  if (atisGroup || atisReports.length) chips.push(atisChip(atisGroup));
+  for (const g of groups.filter(g => g.service !== 'atis').slice(0, max - chips.length)) {
+    chips.push(`<div class="aib-radio-chip ${esc(g.status)}">
+      <div class="aib-radio-name">${esc(g.name)}</div>
+      <div class="aib-radio-main"><span class="aib-radio-freq">${esc(g.freqs.slice(0, 2).join(' / '))}</span>${status(g)}${closingSoon(g)}</div>
+    </div>`);
+  }
+  const note = radio.notams_unavailable ? 'NOTAM FEED UNAVAILABLE · STATUS UNKNOWN'
+    : `STATUS ESTIMATED FROM NOTAMS${radio.hours_configured ? ' &amp; PUBLISHED HOURS' : ''}`;
+  return `<div class="aib-radio ${compact ? 'compact' : ''}">
+    <div class="aib-radio-title">${ICON.radio}<span>RADIO</span></div>
+    <div class="aib-radio-chips">${chips.join('')}</div>
+    <div class="aib-radio-note">${note}</div>
+  </div>`;
+}
+
 // ---- header ----------------------------------------------------------------------------
 function renderHeader(data, ctx) {
   const { F, now, cfg } = ctx;
@@ -293,6 +342,7 @@ export function renderBoard(data, opts = {}) {
   const countLabel = n => n === null || n === undefined ? '' : `${n} AIRCRAFT`;
   return `<div class="aib-screen theme-${esc(cfg.theme || 'navy')}">
     ${renderHeader(data, ctx)}
+    ${cfg.show_radio === false ? '' : renderRadio(data.radio, ctx)}
     <main class="aib-layout">
       <div class="aib-row aib-top">
         <section class="aib-panel" data-panel="arrivals">
@@ -520,6 +570,30 @@ export const BOARD_CSS = `
 .aib-summary.warning { background: #3d2d1b; border-color: var(--orange); } .aib-summary.warning .aib-summary-state { color: var(--orange); }
 .aib-summary.scheduled { background: #403521; border-color: #e3b15c; } .aib-summary.scheduled .aib-summary-state { color: var(--amber); }
 
+/* radio strip */
+.aib-radio { flex: 0 0 auto; display: flex; align-items: stretch; gap: 10px; padding: 8px 12px 0; min-width: 0; }
+.aib-radio-title { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0 10px;
+  border-radius: 10px; background: var(--panel-head); border: 1px solid var(--line); color: var(--sky); font-size: clamp(9px, .7vw, 13px); font-weight: 800; letter-spacing: .1em; }
+.aib-radio-title .aib-ic { width: clamp(18px, 1.4vw, 26px); height: clamp(18px, 1.4vw, 26px); }
+.aib-radio-chips { flex: 1 1 auto; min-width: 0; display: flex; gap: 8px; overflow: hidden; }
+.aib-radio-chip { flex: 1 1 0; min-width: 0; padding: 6px 12px; border-radius: 10px; background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid #41586f; border-left: 4px solid #607a92; }
+.aib-radio-chip.open { border-left-color: var(--green); } .aib-radio-chip.closed { border-left-color: var(--red); }
+.aib-radio-chip.limited { border-left-color: var(--orange); } .aib-radio-chip.atis { border-left-color: var(--sky); flex-grow: 1.6; }
+.aib-radio-name { font-size: clamp(9px, .7vw, 13px); font-weight: 800; letter-spacing: .06em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; }
+.aib-radio-main { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 2px; margin-top: 2px; }
+.aib-radio-freq { font-size: clamp(16px, 1.35vw, 26px); font-weight: 800; color: #fff; white-space: nowrap; }
+.aib-rs { font-size: clamp(9px, .68vw, 12px); font-weight: 800; letter-spacing: .05em; padding: 2px 7px; border-radius: 5px; white-space: nowrap; }
+.aib-rs.open { color: #08111e; background: var(--green); } .aib-rs.closed { color: #fff; background: #b8403d; }
+.aib-rs.limited { color: #08111e; background: var(--orange); } .aib-rs.published { color: var(--muted); background: rgba(255,255,255,.07); }
+.aib-atis-letter { display: flex; align-items: center; gap: 7px; }
+.aib-atis-l { width: clamp(24px, 1.9vw, 36px); height: clamp(24px, 1.9vw, 36px); display: grid; place-items: center; border-radius: 6px; background: var(--sky); color: #08111e; font-size: clamp(16px, 1.35vw, 26px); font-weight: 800; }
+.aib-atis-letter.stale .aib-atis-l { background: #7f95ab; }
+.aib-atis-meta { font-size: clamp(9px, .66vw, 12px); font-weight: 800; color: var(--muted); letter-spacing: .04em; line-height: 1.2; max-width: 11em; }
+.aib-radio-note { flex: 0 0 auto; align-self: center; max-width: 9em; font-size: clamp(8px, .58vw, 11px); font-weight: 700; color: var(--dim); letter-spacing: .05em; line-height: 1.25; text-align: right; }
+.aib-radio.compact { padding: 0; flex-wrap: wrap; } .aib-radio.compact .aib-radio-title { display: none; }
+.aib-radio.compact .aib-radio-chips { flex-wrap: wrap; } .aib-radio.compact .aib-radio-chip { flex: 1 1 45%; }
+.aib-radio.compact .aib-radio-note { max-width: none; text-align: left; }
+
 /* footer */
 .aib-footer { flex: 0 0 auto; display: flex; gap: 18px; align-items: center; padding: 5px 16px 7px; font-size: clamp(8px, .62vw, 12px); font-weight: 700; letter-spacing: .06em; color: var(--dim); }
 .aib-footer-warn { margin-left: auto; color: #c7a76a; }
@@ -551,6 +625,9 @@ export const BOARD_CSS = `
   .aib-notam-title { font-size: 15px; } .aib-notam-text { font-size: 12px; } .aib-notam-dates, .aib-notam-top { font-size: 11px; }
   .aib-footer { flex-wrap: wrap; gap: 6px 14px; font-size: 10px; padding: 8px 12px 14px; }
   .aib-footer-warn { margin-left: 0; }
+  .aib-radio { flex-wrap: wrap; padding: 10px 10px 0; } .aib-radio-title { flex-direction: row; padding: 6px 10px; }
+  .aib-radio-chips { flex-wrap: wrap; } .aib-radio-chip { flex: 1 1 100%; } .aib-radio-freq { font-size: 20px; }
+  .aib-radio-note { max-width: none; text-align: left; } .aib-rs, .aib-atis-meta { font-size: 11px; }
 }
 @media (max-width: 520px) {
   .aib-clock.zulu { display: none; }

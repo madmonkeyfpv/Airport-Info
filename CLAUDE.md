@@ -30,6 +30,7 @@ server/airport_info/       Python aiohttp backend (API + static site)
   flightaware.py           FlightAware airport-board scraper (4 tables) -> flight dicts
   notams.py                NATS PIB parser, Q-code decoder, Item D schedule expansion, interpretation
   airspace.py              UK D/R/P areas (YAIXM dataset) + NOTAM activation -> panel cards/summary
+  radio.py                 radio strip: frequency grouping, NOTAM/hours open-closed ESTIMATE, D-ATIS scrape (atis.guru)
   weather.py               METAR (aviationweather.gov); falls back to nearest fresh METAR
   airports.py              UK airport lookup (ICAO/IATA/name search)
   settings.py              JSON-persisted settings (DEFAULTS documents every key)
@@ -69,6 +70,7 @@ Screenshots: Playwright is preinstalled in cloud sessions (`require('playwright'
 | Local airspace cards | YAIXM UK airspace (`raw.githubusercontent.com/ahsparrow/airspace/master/airspace.yaml`, public domain, AIP ENR 5.1) + PIB R* NOTAMs | Areas within `airspace_range_nm`. State: NOTAM active → ACTIVE (pulse), future → SCHEDULED, `QRDCD` → COLD; else R/P → PERMANENT, D with NOTAM rule → COLD, other D → "AIP HOURS". NOTAM-only temporary areas (TDA/RA(T)/TRA) become cards too. Pins override auto (nearest; live activity within warning radius jumps the queue). |
 | "Other areas & nav warnings" bar | Remaining R* items + W* NOTAMs (drones, parachuting, gliding, models) within `warning_range_nm` | Replaces original "JPG MOAs / ATCAA" bar (no MOAs in UK). |
 | Temperature / wind / QNH / category | aviationweather.gov METAR JSON | If own METAR missing or >3 h old, nearest fresh METAR ≤40 NM, labelled "METAR EGxx · n NM". Cache 10 min. Server also derives QFE (elev/27 ft per hPa), pressure & density altitude (API/sensors only — owner asked for RVR instead on the page), RVR groups (`rvr`, parsed from raw METAR), humidity, visibility text (metres/KM), sky layers, variable-wind range. |
+| Radio strip (board top + weather page) | OurAirports airport-frequencies.csv (built into uk_airports.json; 8.33 kHz duplicates collapsed) + PIB NOTAMs + `service_hours` setting + atis.guru D-ATIS | Fire/EMR hidden. Status is an ESTIMATE (labelled on screen): active NOTAM closing AD/ATC/AFIS/A-G/ATIS or naming the frequency U/S → CLOSED (with NOTAM id); closure within 24 h → CLOSES hh:mm; outside configured hours → CLOSED/OPENS; otherwise "NO NOTAM CHANGES". ATIS letter only from real text D-ATIS (EGLL, EGKK, EGCC, EGPH… not small fields); reports >75 min flagged "may be out of date", >3 h dropped; only queried when the airport publishes an ATIS frequency. Never invent a letter. |
 | Weather station page | same METAR + runways from OurAirports `runways.csv` (built into uk_airports.json) | Runway true heading computed from threshold coordinates. Wind shown TRUE (METAR is true; UK magnetic variation ≈ 0–2° so not converted — the original KIMS screen said MAG). Parallel runways placed by L/R suffix. Head/cross-wind per runway end, favoured runway = max headwind. |
 
 Mapping from original KIMS design → UK version: Fahrenheit → °C (setting), US local time → Europe/London
@@ -109,13 +111,15 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
 - **2026-11-22** — Weather page: DENSITY ALT row replaced by RVR (owner request). Shows each METAR RVR
   group (runway, metres/feet, >/< qualifiers, ↑↓→ tendency) with source ICAO when not local; "NOT REPORTED"
   otherwise (normal — RVR only appears when vis/RVR < 1500 m). 11 tests.
-- Open offer to owner (not yet answered): "Radio" strip = published frequencies (OurAirports
+- **2026-11-22** — Built the radio strip (owner approved): see radio.py / renderRadio in board.js; settings
+  `show_radio`, `service_hours` (Duxford hours not set — owner to supply). 13 tests. Original offer: "Radio" strip = published frequencies (OurAirports
   airport-frequencies.csv) + open/closed estimated from NOTAMs + ATIS letter only where real D-ATIS text exists
   (atis.guru has EGLL; none for EGBB/EGSU). Duxford has no ATIS (A/G "Duxford Information" 122.075).
   Never fabricate an ATIS letter. Listening to UK ATC audio without licence is illegal — don't transcribe.
 
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
+   Owner to supply Duxford opening hours for `service_hours` (improves radio open/closed estimate).
 2. Deploy: run add-on or Docker on the HA host; add card resource; open dashboard on the TVs.
 3. Choose public hosting for the website and set `ADMIN_TOKEN`.
 4. Optional: AIP published-hours parsing for danger areas; more NOTAM title rules from real-world feedback.

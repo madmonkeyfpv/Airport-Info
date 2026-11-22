@@ -43,3 +43,11 @@ rest:
         value_template: "{{ value_json.airspace.summary.state if value_json.airspace else 'unknown' }}"
         json_attributes_path: "$.airspace"
         json_attributes: [cards, summary]
+      - name: Airport Info ATIS
+        unique_id: airport_info_atis
+        # Letter of the most recent text ATIS (only large airports publish one); unknown otherwise
+        value_template: >
+          {% set r = value_json.radio.atis.reports if value_json.radio and value_json.radio.atis else [] %}
+          {{ r[0].letter if r else none }}
+        json_attributes_path: "$.radio"
+        json_attributes: [groups, atis]
