@@ -31,7 +31,9 @@ import { renderBoard, BOARD_CSS, tickClocks, autoScroll } from './board.js';
 import { renderWeather, WEATHER_CSS, tickWeatherClock } from './weather.js';
 
 const params = new URLSearchParams(location.search);
+// Relative URLs so the site also works behind Home Assistant ingress (/api/hassio_ingress/<token>/).
 const API = (params.get('api') || '').replace(/\/$/, '');      // optional: separate API host
+const BASE = API ? API + '/' : '';
 if (params.has('kiosk')) document.body.classList.add('kiosk');
 const style = document.createElement('style'); style.textContent = BOARD_CSS + WEATHER_CSS; document.head.appendChild(style);
 
@@ -71,7 +73,7 @@ async function load() {
   clearTimeout(timer);
   let wait = 60;
   try {
-    const r = await fetch(`${API}/api/data?${query()}`, { cache: 'no-store' });
+    const r = await fetch(`${BASE}api/data?${query()}`, { cache: 'no-store' });
     if (!r.ok) throw new Error(await r.text());
     data = await r.json();
     wait = Math.max(15, Number(data.settings?.refresh_seconds) || 60);
@@ -92,7 +94,7 @@ setInterval(async () => {
   if (!data || checking || document.hidden) return;
   checking = true;
   try {
-    const r = await fetch(`${API}/api/settings/version`, { cache: 'no-store' });
+    const r = await fetch(`${BASE}api/settings/version`, { cache: 'no-store' });
     if (r.ok && (await r.json()).version !== data.settings_version) { clearTimeout(rotateTimer); rotateTimer = null; await load(); }
   } catch {} finally { checking = false; }
 }, 5000);

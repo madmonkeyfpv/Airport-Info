@@ -1,0 +1,22 @@
+# Home Assistant add-on definition (this repository is both an add-on repository and the add-on).
+name: Airport Info
+version: "0.2.0"
+slug: airport_info
+description: UK airport information screens — flights, NOTAMs, airspace, weather station, radio
+url: https://github.com/madmonkeyfpv/Airport-Info
+arch: [amd64, aarch64, armv7]
+startup: application
+boot: auto
+init: false
+ingress: true
+ingress_port: 8080
+panel_icon: mdi:airplane
+panel_title: Airport Info
+ports:
+  8080/tcp: 8080
+ports_description:
+  8080/tcp: Direct LAN access for TVs / kiosk browsers and the dashboard card (optional)
+options:
+  admin_token: ""
+schema:
+  admin_token: password?

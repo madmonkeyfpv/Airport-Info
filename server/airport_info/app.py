@@ -281,7 +281,7 @@ def make_app() -> web.Application:
     app.router.add_route("OPTIONS", "/api/{tail:.*}", a.h_health)
     app.router.add_get("/health", a.h_health)
     app.router.add_get("/", a.h_index)
-    app.router.add_get("/weather", lambda r: web.HTTPFound("/?view=weather" + ("&" + r.query_string if r.query_string else "")))
+    app.router.add_get("/weather", lambda r: web.HTTPFound("./?view=weather" + ("&" + r.query_string if r.query_string else "")))
     app.router.add_static("/", web_dir, show_index=False)
     app["state"] = a
     return app
