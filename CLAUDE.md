@@ -15,8 +15,8 @@ Owner's requirements (verbatim intent):
 - Build the **weather-station page** shown in `reference/IMG_2709_weather_station.jpeg` (done: `web/weather.js`).
 - Originals (`reference/`) must **never be overwritten** — they are the design reference.
 - Flight data: **FlightAware web scraper**. Restricted airspace: **web scraper**.
-- NOTAMs: free UK API (owner called it "NOTAC"; implemented with the free **NATS AIS PIB XML feed**,
-  which is the official free UK NOTAM feed — confirm with owner if "NOTAC" meant something else).
+- NOTAMs: free UK API — **NATS AIS PIB XML feed** (owner originally wrote "NOTAC"; owner confirmed
+  on 2026-11-22 that the NATS feed is correct).
 - Identical functionality to the original at any UK airport; professional look; creative licence OK.
 - Owner does not need to approve merges; only ask critical questions.
 
@@ -104,8 +104,10 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   runway DB (215 UK airfields), derived met values, airspace fixes (upper-airspace ranked last, TRA/MTA
   designators, multi-line place names). 10 tests passing.
 
+- **2026-11-22** — Owner confirmed NATS PIB feed for NOTAMs.
+
 ## Next steps (suggested)
-1. Owner to confirm the NOTAM provider ("NOTAC") and display resolution (assumed 1920×1080).
+1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
 2. Deploy: run add-on or Docker on the HA host; add card resource; open dashboard on the TVs.
 3. Choose public hosting for the website and set `ADMIN_TOKEN`.
 4. Optional: AIP published-hours parsing for danger areas; more NOTAM title rules from real-world feedback.
