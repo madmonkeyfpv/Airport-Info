@@ -117,9 +117,18 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   (atis.guru has EGLL; none for EGBB/EGSU). Duxford has no ATIS (A/G "Duxford Information" 122.075).
   Never fabricate an ATIS letter. Listening to UK ATC audio without licence is illegal — don't transcribe.
 
+- **2026-11-22** — Seasonal opening hours (`15MAR-15OCT 1000-1800; 16OCT-14MAR 1000-1600`) supported;
+  per-airport published hours in `server/airport_info/data/opening_hours.json` (EGSU from IWM pilot info,
+  iwm.org.uk blocks automated fetches so taken from search-indexed IWM text); `service_hours` setting overrides.
+  Strip shows "PPR REQUIRED". 14 tests.
+- Cloudflare: the attached Cloudflare connector (deprecated Workers-bindings MCP) can list/read Workers and
+  manage KV/D1/R2/Hyperdrive and search docs, but CANNOT deploy Worker code, Pages, Tunnels or DNS.
+  Deployment options discussed with owner — see Next steps.
+
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
-   Owner to supply Duxford opening hours for `service_hours` (improves radio open/closed estimate).
+   Duxford hours now built in (data/opening_hours.json, from IWM pilot info; "mid-month" read as the 15th —
+   confirm exact season change dates with Duxford ATC 01223 833376 if precision matters).
 2. Deploy: run add-on or Docker on the HA host; add card resource; open dashboard on the TVs.
 3. Choose public hosting for the website and set `ADMIN_TOKEN`.
 4. Optional: AIP published-hours parsing for danger areas; more NOTAM title rules from real-world feedback.

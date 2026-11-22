@@ -1,0 +1,9 @@
+{
+  "_comment": "Published aerodrome opening hours (UK local time) used for the radio strip's open/closed estimate. The 'service_hours' setting overrides these when set. Always record the source and the date checked.",
+  "EGSU": {
+    "hours": "15MAR-15OCT 1000-1800; 16OCT-14MAR 1000-1600",
+    "ppr": "Strictly PPR at all times by telephone",
+    "source": "IWM Duxford pilot information (iwm.org.uk): opening hours (local) mid-March to mid-October 1000-1800, winter 1000-1600; out-of-hours on request. 'Mid-month' interpreted as the 15th.",
+    "checked": "2026-11-22"
+  }
+}

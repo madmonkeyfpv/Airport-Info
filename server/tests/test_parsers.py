@@ -150,3 +150,14 @@ def test_radio_status_from_notams_and_hours():
     assert r["groups"][0]["status"] == "open" and r["groups"][0]["freqs"] == ["122.075"]
     w = hours_windows("MON-FRI 0800-1800, SAT SUN 0900-1700", NOW)
     assert any(s.weekday() == 5 and s.hour == 9 for s, _ in w)  # Saturday 0900 local = 0900Z in winter
+
+
+def test_seasonal_hours_duxford():
+    from airport_info.radio import hours_windows
+    h = "15MAR-15OCT 1000-1800; 16OCT-14MAR 1000-1600"
+    w = hours_windows(h, NOW)  # 22 Nov -> winter, GMT
+    nxt = [x for x in w if x[0] > NOW][0]
+    assert nxt[0].isoformat() == "2026-11-23T10:00:00+00:00" and nxt[1].isoformat() == "2026-11-23T16:00:00+00:00"
+    july = datetime(2026, 7, 1, 8, 0, tzinfo=timezone.utc)
+    s, e = [x for x in hours_windows(h, july) if x[0] > july][0]
+    assert s.isoformat() == "2026-07-01T09:00:00+00:00" and e.isoformat() == "2026-07-01T17:00:00+00:00"  # BST
