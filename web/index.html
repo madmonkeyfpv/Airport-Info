@@ -87,6 +87,24 @@ async function load() {
 
 setInterval(() => { if (data) { tickClocks(app, data.settings); tickWeatherClock(app); } }, 1000);
 
+// Live nearby traffic moves fast: refresh just that part every 15 s (cheap; server caches the ADS-B feed).
+let trafficBusy = false;
+setInterval(async () => {
+  if (!data || trafficBusy || document.hidden || data.settings?.show_traffic === false) return;
+  trafficBusy = true;
+  try {
+    const r = await fetch(`${BASE}api/traffic?${query()}`, { cache: 'no-store' });
+    if (r.ok) {
+      const t = await r.json();
+      if (t.traffic) {
+        data.traffic = t.traffic;
+        data.sources = { ...data.sources, traffic: { ...(data.sources?.traffic || {}), updated: t.generated_at, error: t.error } };
+        if (page === 'board') render();
+      }
+    }
+  } catch {} finally { trafficBusy = false; }
+}, 15000);
+
 // Keep every screen in sync with the settings page: poll a tiny fingerprint and reload the
 // moment the saved settings (airport, view, units…) change, instead of waiting for the next refresh.
 let checking = false;

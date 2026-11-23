@@ -201,3 +201,27 @@ def test_install_card_files_into_ha_www(tmp_path):
     assert "from './board.js?v=9.9.9'" in (out / "weather.js").read_text()
     meta = _json.loads((out / "addon.json").read_text())
     assert meta == {"version": "9.9.9", "ingress_url": "/api/hassio_ingress/abc/", "port": 8765}
+
+
+def test_traffic_classification():
+    import json as _json
+    from airport_info.traffic import build_traffic, classify
+    su = airports.resolve("EGSU")
+    t = build_traffic(_json.loads((FX / "adsb_EGSU.json").read_text()), su, 1025, 10, 3000)
+    by = {a["ident"]: a for a in t["aircraft"]}
+    assert by["D-EGCK"]["status"] == "approaching" and by["D-EGCK"]["eta_min"] == 6
+    assert by["G-CKVV"]["status"] == "departed"            # 1.2 NM, climbing 1500 fpm away from the field
+    assert "EI-EVN" not in by and "HB-JNI" not in by       # parked at Stansted 12 NM away / 777 at FL320
+    assert by["D-EGCK"]["type_name"] == "Grob Tutor"
+    assert [a["status"] for a in t["aircraft"]][0] == "approaching"   # most relevant first
+    near = lambda **k: {"hex": "x", "r": "G-TEST", "t": "C152", "lat": su["lat"] + 0.01, "lon": su["lon"],
+                        "seen_pos": 1, **k}
+    assert classify(near(alt_baro=900, gs=70, track=90, baro_rate=0), su, 1013, 3000)["status"] == "circuit"
+    assert classify(near(alt_baro="ground", gs=5), su, 1013, 3000)["status"] == "ground"
+    assert classify(near(alt_baro=900, seen_pos=300), su, 1013, 3000) is None          # stale position
+    assert classify(near(alt_baro=9000), su, 1013, 3000) is None                       # too high: transit
+    assert classify(near(alt_baro=900, squawk="7700"), su, 1013, 3000)["emergency"]
+    glitch = classify(near(alt_baro=1800, gs=415, track=200, baro_rate=64900), su, 1013, 3000)
+    assert glitch["vs_fpm"] is None and glitch["gs_kt"] == 0          # corrupt ADS-B values dropped
+    assert classify(near(alt_baro=900, flight="GEGCK", r="D-EGCK"), su, 1013, 3000)["callsign"] == ""
+    assert classify(near(alt_baro=900, flight="EZY12AB", r="G-EZAB"), su, 1013, 3000)["callsign"] == "EZY12AB"

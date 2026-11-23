@@ -1,6 +1,6 @@
 # Airport Info add-on
 
-UK airport information screens: arrivals/departures (FlightAware), NOTAMs (NATS), local airspace,
+UK airport information screens: arrivals/departures (FlightAware), live nearby traffic (ADS-B), NOTAMs (NATS), local airspace,
 weather station (wind rose + runways), radio frequencies & ATIS.
 
 - Open **Airport Info** in the sidebar (works locally and remotely via Home Assistant ingress).

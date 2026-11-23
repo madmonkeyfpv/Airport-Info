@@ -37,6 +37,9 @@ server/airport_info/       Python aiohttp backend (API + static site)
                            (ADMIN users only). config.yaml maps homeassistant_config:rw.
   links.py                 /api/links: LAN base URLs for TVs (Supervisor API: host IPs, hostname, mapped host port;
                            fallback: request Host + outbound IP) → settings page "Screen addresses" with copy buttons
+  traffic.py               live nearby traffic: adsb.lol /v2/point (free, ODbL) → classify approaching(ETA)/circuit/ground/
+                           departed/nearby from distance, closing speed, QNH-corrected height, climb; drops stale/implausible
+                           ADS-B values; shown in the arrivals panel (renderTraffic in board.js), /api/traffic polled every 15 s
   radio.py                 radio strip: frequency grouping, NOTAM/hours open-closed ESTIMATE, D-ATIS scrape (atis.guru)
   weather.py               METAR (aviationweather.gov); falls back to nearest fresh METAR
   airports.py              UK airport lookup (ICAO/IATA/name search)
@@ -82,6 +85,7 @@ Screenshots: Playwright is preinstalled in cloud sessions (`require('playwright'
 | Arrivals / departures / latest activity | Scrape `flightaware.com/live/airport/<ICAO>` | Tables `data-type=arrivals|departures|enroute|scheduled`. Times are local with tz abbr; **format depends on Accept-Language** (en-GB → `17:52`, en-US → `05:52p`) — parser handles both. History URL `/history/YYYYMMDD/HHMMZ/ORIG/DEST` anchors the date. Italic = estimate. Progress bar = airborne. Stale inbound (ETA > 30 min past) dropped. Cache 120 s. |
 | NOTAMs | `https://pibs.nats.co.uk/operational/pibs/PIB.xml` (~2 MB, all UK) | Cached 15 min globally. Aerodrome NOTAMs = ItemA contains ICAO. Obstacles and airspace/warning NOTAMs hidden by default (settings). Titles built from Q-code (Code23 subject / Code45 condition) + keywords. Item D schedules (e.g. `MON-FRI 0800-1600`, `SR-SS`, date lists) expanded to UTC windows → ACTIVE / UPCOMING. RWYCC triplets rendered as thirds (UK GRF/SNOWTAM). |
 | Local airspace cards | YAIXM UK airspace (`raw.githubusercontent.com/ahsparrow/airspace/master/airspace.yaml`, public domain, AIP ENR 5.1) + PIB R* NOTAMs | Areas within `airspace_range_nm`. State: NOTAM active → ACTIVE (pulse), future → SCHEDULED, `QRDCD` → COLD; else R/P → PERMANENT, D with NOTAM rule → COLD, other D → "AIP HOURS". NOTAM-only temporary areas (TDA/RA(T)/TRA) become cards too. Pins override auto (nearest; live activity within warning radius jumps the queue). |
+| Live nearby traffic (arrivals panel) | `https://api.adsb.lol/v2/point/{lat}/{lon}/{nm}` (community ADS-B, open data ODbL, no key) | Why: small UK fields have no schedules and VFR GA files no flight plans, so FlightAware's expected tables are empty there (verified EGSU/EGSC: 0 en-route/scheduled while 10–20 movements/day). Filter: within `traffic_range_nm` (10), below `traffic_max_ft_agl` (3000 ft) using QNH-corrected altitude, `ground` only within 1.5 NM, positions ≤60 s old; gs>400 kt / |vs|>6000 fpm dropped as corrupt. Classify: climbing away → departed; ≤2.5 NM & ≤1500 ft → circuit; closing >25 kt & low/descending → approaching with ETA; else nearby. Board shows max 8 (+N more). Cache 15 s; clients poll `/api/traffic` every 15 s. Settings `show_traffic`, `traffic_range_nm`, `traffic_max_ft_agl`. |
 | "Other areas & nav warnings" bar | Remaining R* items + W* NOTAMs (drones, parachuting, gliding, models) within `warning_range_nm` | Replaces original "JPG MOAs / ATCAA" bar (no MOAs in UK). |
 | Temperature / wind / QNH / category | aviationweather.gov METAR JSON | If own METAR missing or >3 h old, nearest fresh METAR ≤40 NM, labelled "METAR EGxx · n NM". Cache 10 min. Server also derives QFE (elev/27 ft per hPa), pressure & density altitude (API/sensors only — owner asked for RVR instead on the page), RVR groups (`rvr`, parsed from raw METAR), humidity, visibility text (metres/KM), sky layers, variable-wind range. |
 | Radio strip (board top + weather page) | OurAirports airport-frequencies.csv (built into uk_airports.json; 8.33 kHz duplicates collapsed) + PIB NOTAMs + `service_hours` setting + atis.guru D-ATIS | Fire/EMR hidden. Status is an ESTIMATE (labelled on screen): active NOTAM closing AD/ATC/AFIS/A-G/ATIS or naming the frequency U/S → CLOSED (with NOTAM id); closure within 24 h → CLOSES hh:mm; outside configured hours → CLOSED/OPENS; otherwise "NO NOTAM CHANGES". ATIS letter only from real text D-ATIS (EGLL, EGKK, EGCC, EGPH… not small fields); reports >75 min flagged "may be out of date", >3 h dropped; only queried when the airport publishes an ATIS frequency. Never invent a letter. |
@@ -220,10 +224,16 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   Every label quoted in the guide matches the app text (checked). Docs-only.
   Keep the guide in this style: lead with the common path, push rare cases into <details>.
 
+- **2026-11-23** — Owner asked why EGSC/EGSU have no scheduled flights: FlightAware only has airline schedules + filed IFR
+  plans; UK VFR GA rarely files and FA only sees GA once airborne. Built the live nearby-traffic panel (owner approved):
+  traffic.py + renderTraffic + /api/traffic + 15 s client refresh (website + HA card), settings, HA sensor
+  "Airport Info Nearby Traffic", README/guide/DOCS updated. Live-checked EGSU/EGSC/EGBB; fixed a real corrupt-value
+  case (PA-28 "415 kt, 64,900 fpm"). Fixture adsb_EGSU.json. Add-on 0.3.0. 20 tests.
+
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
    Duxford hours now built in (data/opening_hours.json, from IWM pilot info; "mid-month" read as the 15th —
    confirm exact season change dates with Duxford ATC 01223 833376 if precision matters).
-2. Owner: update add-on to 0.2.6, restart it, set dashboard resource /local/airport-info/card/airport-info-card.js?v=0.2.6, choose airport, set up TVs (guide steps 2–4). Check add-on Log tab if issues.
+2. Owner: update add-on to 0.3.0, restart it, set dashboard resource /local/airport-info/card/airport-info-card.js?v=0.3.0, choose airport, set up TVs (guide steps 2–4). Check add-on Log tab if issues.
 3. Public hosting parked (owner: "keep it as is for now"). Options documented above if revisited.
 4. Optional: AIP published-hours parsing for danger areas; more NOTAM title rules from real-world feedback.
