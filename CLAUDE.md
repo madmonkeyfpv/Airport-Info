@@ -59,7 +59,8 @@ Dockerfile                 ONE image for plain Docker and the add-on: ghcr.io/ho
                            PORTS: container always listens on 8080; HA add-on maps it to HOST 8765 by default (8080
                            clashed on the owner's HA, v0.2.2); plain Docker/compose keeps 8080:8080. Ingress uses 8080 internally.
 docker-compose.yml         plain Docker deployment (settings persist in ./data)
-docs/screenshots/          rendered screenshots of the prototype (TV, phone, HA card, settings)
+docs/screenshots/          README screenshots (regenerated 2026-11-23 from v0.2.6; for README shots switch airport via
+                           POST /api/settings, NOT ?airport= — that shows the orange 'SCREEN PINNED' badge)
 tools/build_airports.py    regenerate the UK airport DB
 ```
 
@@ -208,6 +209,10 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   60 s, renewed on 401), else fallback next-to-module. Tested end-to-end with a simulated HA origin (static /local + cookie-
   checked ingress proxy) + mock Supervisor; old server: route re-tested. Settings page shows the /local resource as
   RECOMMENDED. Guide Option 3 rewritten. Add-on 0.2.6. 19 tests.
+
+- **2026-11-23** — README screenshots refreshed from 0.2.6 with live data (EGSU board + weather, EGBB board + weather +
+  phone, HA card, EGLL radio strip, settings + screen addresses); README rewritten with a screenshot gallery. Removed
+  obsolete tv_egbj / ha_card_eglc_midnight images. Docs-only (no add-on version bump).
 
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
