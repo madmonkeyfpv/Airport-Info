@@ -136,7 +136,7 @@ If you use the dashboard card, after updating:
 | **"Custom element doesn't exist: airport-info-card"** | 1. Update the add-on to 0.2.6 or later and restart it. 2. Check the resource matches Screen addresses and is a **JavaScript module**. 3. Refresh, or reset the frontend cache in the app. |
 | **Card: "…needs an administrator account"** | Sign in as an admin on that screen, or see *Non-admin screens* below. |
 | **"Cannot start app … port is already in use"** | Change the port under Configuration → Network (see step 2). |
-| **"No flight plans scheduled"** | Normal at small airfields: most VFR flights don't file a plan. The **Live traffic** list underneath shows what's actually flying nearby instead. |
+| **"No flight plans scheduled"** | Normal at small airfields: most VFR flights don't file a plan. That panel then shows **live traffic** instead. Inbound and local aircraft go under arrivals; departing and on-ground aircraft go under departures. Panels that have real flight plans never show live traffic. |
 | **Orange "SCREEN PINNED TO …" badge** | That screen's address contains `?airport=` (or its card has `airport:`). Remove it to follow the settings page. |
 
 <details>

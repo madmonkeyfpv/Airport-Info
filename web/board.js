@@ -132,10 +132,9 @@ function renderTrafficItem(a) {
     </div>
   </div>`;
 }
-export function renderTraffic(traffic, ctx, icao) {
+export function renderTraffic(traffic, ctx, icao, list = traffic?.aircraft || [], label = `LIVE TRAFFIC NEAR ${icao}`) {
   if (!traffic) return '';
-  const list = traffic.aircraft || [];
-  const head = `<div class="aib-traffic-head"><span>${ICON.radar}LIVE TRAFFIC NEAR ${esc(icao)}</span><span>${esc(traffic.range_nm)} NM · BELOW ${esc(Number(traffic.max_ft_agl).toLocaleString('en-GB'))} FT</span></div>`;
+  const head = `<div class="aib-traffic-head"><span>${ICON.radar}${esc(label)}</span><span>${esc(traffic.range_nm)} NM · BELOW ${esc(Number(traffic.max_ft_agl).toLocaleString('en-GB'))} FT</span></div>`;
   const MAX = 8;  // big airports can have dozens of aircraft on the ground; keep the panel readable
   const more = list.length > MAX ? `<div class="aib-traffic-none">+${list.length - MAX} more within ${esc(traffic.range_nm)} NM</div>` : '';
   const body = list.length ? list.slice(0, MAX).map(renderTrafficItem).join('') + more
@@ -359,16 +358,38 @@ export function renderBoard(data, opts = {}) {
   const panel = data.airspace;
   const unavailable = what => `<div class="aib-unavailable">${what} TEMPORARILY UNAVAILABLE<br><span>Retrying automatically</span></div>`;
 
+  // Live nearby traffic (ADS-B) only fills a panel whose FlightAware list is BLANK (empty or unavailable) — busy
+  // airports with real schedules in both panels show no live traffic at all.
+  //   both blank      -> arrivals: approaching / circuit / nearby;  departures: just departed / on the ground
+  //   one blank       -> that panel shows the whole live list
   const traffic = cfg.show_traffic === false ? null : data.traffic;
   const icao = data.airport.icao || data.airport.iata;
-  const trafficCount = traffic?.aircraft?.length || 0;
-  // Planned arrivals (FlightAware) first, then what's actually flying nearby (ADS-B). At small GA fields there are
-  // usually no flight plans, so live traffic fills the panel instead of a bare "no flights" message.
-  const plannedHtml = !arrivals ? unavailable('FLIGHT DATA') : arrivals.map(f => renderArrival(f, ctx)).join('');
-  const arrivalsHtml = (arrivals && !arrivals.length && !trafficCount)
-    ? emptyFlights('NO FLIGHT PLANS SCHEDULED', traffic ? `No inbound flight plans · no traffic within ${esc(traffic.range_nm)} NM` : 'No inbound aircraft currently reported') + (traffic ? `<div class="aib-traffic-note center">Live traffic near ${esc(icao)} appears here automatically</div>` : '')
-    : plannedHtml + (arrivals && !arrivals.length ? `<div class="aib-noplans">No flight plans filed · showing live traffic</div>` : '') + renderTraffic(traffic, ctx, icao);
-  const departuresHtml = !departures ? unavailable('FLIGHT DATA') : departures.length ? departures.map(f => renderDeparture(f, ctx)).join('') : emptyFlights('NO FLIGHT PLANS SCHEDULED', 'No scheduled departures currently reported');
+  const arrBlank = !arrivals || !arrivals.length, depBlank = !departures || !departures.length;
+  const ARR_SIDE = new Set(['approaching', 'circuit', 'nearby']);
+  const all = traffic?.aircraft || [];
+  let arrTraffic = null, depTraffic = null, arrLabel = `LIVE TRAFFIC NEAR ${icao}`, depLabel = `LIVE TRAFFIC NEAR ${icao}`;
+  if (traffic && arrBlank && depBlank) {
+    arrTraffic = all.filter(a => ARR_SIDE.has(a.status)); arrLabel = `INBOUND & LOCAL TRAFFIC · ${icao}`;
+    depTraffic = all.filter(a => !ARR_SIDE.has(a.status)); depLabel = `DEPARTING & ON THE GROUND · ${icao}`;
+  } else if (traffic && arrBlank) arrTraffic = all;
+  else if (traffic && depBlank) depTraffic = all;
+
+  const panelHtml = (flights, render, slice, label, emptySub, emptyLive) => {
+    const planned = !flights ? unavailable('FLIGHT DATA') : flights.map(render).join('');
+    if (flights && flights.length) return planned;                  // real flight plans: no live traffic here
+    if (!slice) return flights ? emptyFlights('NO FLIGHT PLANS SCHEDULED', emptySub) : planned;
+    if (!slice.length) {
+      return (flights ? emptyFlights('NO FLIGHT PLANS SCHEDULED', emptyLive) : planned)
+        + `<div class="aib-traffic-note center">Live traffic near ${esc(icao)} appears here automatically</div>`;
+    }
+    return planned + (flights ? `<div class="aib-noplans">No flight plans filed · showing live traffic</div>` : '')
+      + renderTraffic(traffic, ctx, icao, slice, label);
+  };
+  const arrivalsHtml = panelHtml(arrivals, f => renderArrival(f, ctx), arrTraffic, arrLabel,
+    'No inbound aircraft currently reported', `No inbound flight plans · no traffic within ${esc(traffic?.range_nm)} NM`);
+  const departuresHtml = panelHtml(departures, f => renderDeparture(f, ctx), depTraffic, depLabel,
+    'No scheduled departures currently reported', 'No flight plans filed · nothing departing right now');
+  const nearby = slice => slice ? ` · ${slice.length} NEARBY` : '';
   const notamHtml = !notams ? unavailable('NOTAM FEED') : notams.length ? notams.map(n => renderNotam(n, ctx)).join('') : `<div class="aib-notam-empty">${ICON.check}<div>NO OPERATIONAL NOTAMS REPORTED</div></div>`;
   const airspaceHtml = !panel ? unavailable('AIRSPACE STATUS') : `
       <div class="aib-area-heading">RESTRICTED &amp; DANGER AREAS · ${esc(cfg.airspace_range_nm)} NM</div>
@@ -394,11 +415,11 @@ export function renderBoard(data, opts = {}) {
     <main class="aib-layout">
       <div class="aib-row aib-top">
         <section class="aib-panel" data-panel="arrivals">
-          <div class="aib-panel-header"><span>${ICON.landing}LIVE &amp; EXPECTED ARRIVALS</span><span class="aib-count">${countLabel(arrivals?.length)}${traffic ? ` · ${trafficCount} NEARBY` : ''}</span></div>
+          <div class="aib-panel-header"><span>${ICON.landing}LIVE &amp; EXPECTED ARRIVALS</span><span class="aib-count">${countLabel(arrivals?.length)}${nearby(arrTraffic)}</span></div>
           <div class="aib-panel-body aib-scroll">${arrivalsHtml}</div>
         </section>
         <section class="aib-panel" data-panel="departures">
-          <div class="aib-panel-header"><span>${ICON.takeoff}EXPECTED DEPARTURES</span><span class="aib-count">${countLabel(departures?.length)}</span></div>
+          <div class="aib-panel-header"><span>${ICON.takeoff}EXPECTED DEPARTURES</span><span class="aib-count">${countLabel(departures?.length)}${nearby(depTraffic)}</span></div>
           <div class="aib-panel-body aib-scroll">${departuresHtml}</div>
         </section>
       </div>

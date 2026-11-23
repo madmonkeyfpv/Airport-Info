@@ -225,3 +225,20 @@ def test_traffic_classification():
     assert glitch["vs_fpm"] is None and glitch["gs_kt"] == 0          # corrupt ADS-B values dropped
     assert classify(near(alt_baro=900, flight="GEGCK", r="D-EGCK"), su, 1013, 3000)["callsign"] == ""
     assert classify(near(alt_baro=900, flight="EZY12AB", r="G-EZAB"), su, 1013, 3000)["callsign"] == "EZY12AB"
+
+
+def test_traffic_only_in_blank_panels():
+    """Live traffic appears only where the FlightAware list is blank (owner rule); runs the real renderer in Node."""
+    import json as _json
+    import shutil
+    import subprocess
+    import pytest
+    if not shutil.which("node"):
+        pytest.skip("node not installed")
+    script = pathlib.Path(__file__).parent / "js" / "traffic_panels.mjs"
+    out = _json.loads(subprocess.run(["node", str(script)], capture_output=True, text=True, check=True).stdout)
+    assert out["both_blank"] == {"arrivals": ["approaching", "circuit", "nearby"], "departures": ["departed", "ground"]}
+    assert out["arr_blank"]["departures"] == [] and len(out["arr_blank"]["arrivals"]) == 5
+    assert out["dep_blank"]["arrivals"] == [] and len(out["dep_blank"]["departures"]) == 5
+    assert out["neither_blank"] == {"arrivals": [], "departures": []}
+    assert out["fa_unavailable"] == out["both_blank"]

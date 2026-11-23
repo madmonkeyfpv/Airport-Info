@@ -9,8 +9,8 @@ Two screens, plus a settings page. Default airport: **EGSU Duxford**.
 
 - **Information board** (`/`):
   - live and expected arrivals/departures, with "arriving within 30/60 minutes" alerts;
-  - **live traffic near the airfield** from ADS-B (approaching with ETA, in the circuit, just departed),
-    which fills the gap at small fields where nobody files flight plans;
+  - **live traffic near the airfield** from ADS-B (approaching with ETA, in the circuit, just departed). It appears
+    only in a panel with no flight plans, which fills the gap at small fields where nobody files them;
   - interpreted NOTAMs, latest activity, and local restricted/danger airspace with live activation status;
   - a **radio strip**: the airfield's frequencies, an open/closed estimate from NOTAMs and opening hours, and
     the current ATIS letter where a real text ATIS exists.
