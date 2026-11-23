@@ -7,7 +7,7 @@
 | `airport_info_dashboard.yaml` | Full-screen dashboard with two views (board, airfield weather) using the custom card |
 | `airport_info_package.yaml` | Optional REST sensors for automations (temperature, inbound count, next arrival, NOTAMs, airspace, ATIS) |
 
-The add-on itself is defined at the repository root (`config.yaml`, `build.yaml`, `Dockerfile`, `run.sh`, `DOCS.md`),
+The add-on itself is defined at the repository root (`config.yaml`, `Dockerfile`, `run.sh`, `DOCS.md`),
 so the repository is both an add-on repository and the add-on. The card (`web/card/airport-info-card.js`) and the
 website share one renderer (`web/board.js`, `web/weather.js`), so they always look identical.
 

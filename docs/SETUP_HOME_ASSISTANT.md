@@ -19,7 +19,7 @@ Allow about 20–30 minutes, most of it waiting for the add-on to build.
 |---|---|
 | **Home Assistant OS** or **Supervised** | These have the *Add-ons* menu: Settings → Add-ons. On **HA Container/Core** (no add-ons), use the [Docker method](#appendix-a--home-assistant-container--core-no-add-ons). |
 | Internet access on the HA machine | The server fetches FlightAware, NATS NOTAMs, METARs and airspace data. |
-| Access to the GitHub repository | It is currently **private**, so use **Method B** in step 1. |
+| A 64-bit Home Assistant machine | Raspberry Pi 4/5, Home Assistant Green/Yellow, or any PC/NUC (amd64/aarch64). |
 | A browser on any computer | Used to copy files to Home Assistant and to set things up. |
 
 Find your Home Assistant address, e.g. `http://homeassistant.local:8123` or `http://192.168.1.50:8123`.
@@ -29,12 +29,12 @@ This guide writes **`<HA-IP>`** for the IP part, e.g. `192.168.1.50`.
 
 ## 1. Install the add-on
 
-### Method A: add-on repository (only if the GitHub repo is made **public**)
+### Method A: add-on repository (recommended; the repository is public)
 1. Go to **Settings → Add-ons → Add-on Store**, then **⋮** (top right) → **Repositories**.
 2. Paste `https://github.com/madmonkeyfpv/Airport-Info` and click **Add**, then **Close**.
 3. Refresh the page and scroll to **Airport Info add-ons**. Open **Airport Info** and click **Install**.
 
-### Method B: local add-on (works with the private repo; use this now)
+### Method B: local add-on (only if the repository is ever made private again)
 1. **Install a way to copy files into Home Assistant.** The easiest is the **Samba share** add-on:
    - Settings → Add-ons → Add-on Store → search **Samba share** → Install.
    - On its **Configuration** tab, set a username and password, then **Save**.
