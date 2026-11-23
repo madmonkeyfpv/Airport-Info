@@ -45,10 +45,10 @@ web/settings.html          settings UI (airport autocomplete, units, airspace pi
 web/card/airport-info-card.js  Home Assistant Lovelace card (imports ../board.js -> identical board)
 homeassistant/             dashboard YAML, optional REST-sensor package, short README pointing to the guide
 docs/SETUP_HOME_ASSISTANT.md   USER-FACING install guide for Home Assistant (keep it current with any change!)
-config.yaml, build.yaml,   HOME ASSISTANT ADD-ON lives at the REPO ROOT (repository.yaml + config.yaml):
-  run.sh, DOCS.md          the repo is both the add-on repository and the add-on; build context = whole repo
-Dockerfile                 ONE image for plain Docker (default BUILD_FROM python:3.13-slim) and the add-on
-                           (build.yaml → ghcr.io/home-assistant/{arch}-base-python:3.13-alpine3.22, tags verified)
+config.yaml, run.sh,       HOME ASSISTANT ADD-ON lives at the REPO ROOT (repository.yaml + config.yaml):
+  DOCS.md                  the repo is both the add-on repository and the add-on; build context = whole repo
+Dockerfile                 ONE image for plain Docker and the add-on: ghcr.io/home-assistant/base-python:3.13-alpine3.22
+                           (multi-arch amd64+arm64, verified). NO build.yaml (deprecated by Supervisor). arch: amd64, aarch64
 docker-compose.yml         plain Docker deployment (settings persist in ./data)
 docs/screenshots/          rendered screenshots of the prototype (TV, phone, HA card, settings)
 tools/build_airports.py    regenerate the UK airport DB
@@ -98,10 +98,9 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
 ## Known limitations / ideas
 - FlightAware markup can change; tests in `server/tests` catch parser breakage using fixtures. FlightAware shows only ~20 rows per table; small GA fields often have no filed flight plans (empty state is normal).
 - Danger areas without NOTAM-activation have published AIP hours that YAIXM doesn't carry → shown as "AIP HOURS" (not live). Possible upgrade: parse NATS eAIP ENR 5.1 hours, or the UK AUP/UUP.
-- Docker image / add-on build NOT yet tested on a real HA box (no Docker daemon in cloud sessions). If the owner
-  reports a Supervisor build error, fix Dockerfile/build.yaml. Add-on bumps: raise `version` in config.yaml.
-- Repo is PRIVATE (github.com returns 404 publicly) → guide uses "Method B" local add-on (copy repo into
-  /addons/airport_info via Samba). Method A (add-on repository URL) only works if the owner makes the repo public.
+- Add-on build VERIFIED on the owner's HA (aarch64, Supervisor log 2026-11-23: v0.2.0 built in ~2 min and installed
+  via the repository URL). Cloud sessions have no Docker daemon, so builds can only be checked via owner logs.
+- Repo is now PUBLIC → guide's Method A (add-on repository URL) is the recommended install; Method B kept for reference.
 - HA ingress (sidebar panel) works over HA's https; all web URLs are RELATIVE (`api/...`, `./?view=weather`) so
   the site works under `/api/hassio_ingress/<token>/` — never reintroduce absolute `/api/...` paths in web/*.html.
   The dashboard card loads from http://<HA-IP>:8080, so it needs HA opened over local http (mixed content).
@@ -157,10 +156,14 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   secrets in tree/history, commit emails are GitHub noreply, reference photos carry no EXIF GPS/device data.
   Advised: public → Method A (add-on repository URL, one-click install + update button). Add-on v0.2.0.
 
+- **2026-11-23** — Owner made the repo public and installed via the add-on repository: Supervisor log shows
+  build + install of v0.2.0 OK on aarch64. Addressed log deprecations: removed build.yaml (base image now set in
+  Dockerfile, multi-arch ghcr.io/home-assistant/base-python:3.13-alpine3.22), dropped armv7. Add-on v0.2.1.
+
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
    Duxford hours now built in (data/opening_hours.json, from IWM pilot info; "mid-month" read as the 15th —
    confirm exact season change dates with Duxford ATC 01223 833376 if precision matters).
-2. Owner installs on HA following docs/SETUP_HOME_ASSISTANT.md (Method B). Fix any Supervisor build errors reported.
+2. Owner: update add-on to 0.2.1, Start it, choose airport, set up TVs (guide steps 2–4). Check add-on Log tab if issues.
 3. Public hosting parked (owner: "keep it as is for now"). Options documented above if revisited.
 4. Optional: AIP published-hours parsing for danger areas; more NOTAM title rules from real-world feedback.

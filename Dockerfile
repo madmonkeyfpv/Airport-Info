@@ -1,9 +1,8 @@
-# Airport Info — one image for both uses:
-#  * plain Docker / docker compose (website + API)          -> base python:3.13-slim
-#  * Home Assistant add-on (config.yaml + build.yaml at root) -> HA passes BUILD_FROM (Alpine base-python)
-# The image is built entirely from this repository's files, so it works for a private repo
-# installed as a *local* add-on as well as a public add-on repository.
-ARG BUILD_FROM=python:3.13-slim
+# Airport Info — one image for both uses (plain Docker / docker compose, and the Home Assistant add-on).
+# Base: Home Assistant's multi-arch Python image (amd64 + arm64). build.yaml is deprecated by the
+# Supervisor, so the base image is set here; the Supervisor builds for the host's platform.
+# The image is built entirely from this repository's files (works as a local add-on too).
+ARG BUILD_FROM=ghcr.io/home-assistant/base-python:3.13-alpine3.22
 FROM ${BUILD_FROM}
 WORKDIR /app
 COPY server/requirements.txt server/requirements.txt
