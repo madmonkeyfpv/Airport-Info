@@ -4,6 +4,7 @@ Endpoints
   GET  /api/data?airport=EGSU[&other setting overrides]  -> everything the display needs
   GET  /api/airports?q=glou                               -> airport search (UK)
   GET  /api/settings                                      -> current saved settings
+  GET  /api/traffic?airport=EGSU                         -> live nearby ADS-B traffic (polled every ~15 s)
   GET  /api/links                                         -> LAN addresses + host port for TVs (settings page)
   GET  /api/settings/version                              -> settings fingerprint (screens poll every 5 s to stay in sync)
   POST /api/settings  (JSON body; header X-Admin-Token if ADMIN_TOKEN is set)
@@ -37,12 +38,13 @@ from .ha_install import install_card_files
 from .links import _supervisor_token, _sv_get, screen_links
 from .radio import build_radio, fetch_datis
 from .settings import Settings
+from .traffic import build_traffic, fetch_traffic
 from .weather import fetch_weather
 
 log = logging.getLogger("airport_info")
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
-TTL = {"flights": 120, "weather": 600, "pib": 900, "airspace": 86400, "atis": 300}
+TTL = {"flights": 120, "weather": 600, "pib": 900, "airspace": 86400, "atis": 300, "traffic": 15}
 
 
 class Cache:
@@ -184,6 +186,18 @@ class App:
     async def _weather(self, ap: dict):
         return await self.cache.get(f"wx:{ap['icao'] or ap['iata']}", TTL["weather"], lambda: fetch_weather(self.session, ap))
 
+    async def _traffic_raw(self, ap: dict, range_nm: float):
+        key = f"adsb:{ap['icao'] or ap['iata']}:{int(range_nm)}"
+        return await self.cache.get(key, TTL["traffic"], lambda: fetch_traffic(self.session, ap, range_nm))
+
+    async def traffic(self, ap: dict, cfg: dict, wx: dict | None) -> tuple[dict | None, str | None, float | None]:
+        if not cfg["show_traffic"]:
+            return None, None, None
+        raw, t, err = await self._traffic_raw(ap, cfg["traffic_range_nm"])
+        if raw is None:
+            return None, err, t
+        return build_traffic(raw, ap, (wx or {}).get("qnh"), cfg["traffic_range_nm"], cfg["traffic_max_ft_agl"]), err, t
+
     async def _datis(self, ap: dict):
         if not ap.get("icao") or not any("ATIS" in (f.get("type", "") + f.get("name", "")).upper()
                                          for f in ap.get("frequencies") or []):
@@ -209,6 +223,7 @@ class App:
             panel = build_panel(static, near_n, cfg["airspace_pinned"], cfg["airspace_cards"], cfg["warning_range_nm"])
 
         radio = build_radio(ap, pib or [], now, cfg["service_hours"], datis) if cfg["show_radio"] else None
+        traffic, traffic_err, traffic_t = await self.traffic(ap, cfg, wx)
         if radio is not None and pib is None:
             radio["notams_unavailable"] = True
 
@@ -225,8 +240,10 @@ class App:
             "notams": notams,
             "airspace": panel,
             "radio": radio,
+            "traffic": traffic,
             "sources": {
                 "atis": {"updated": iso(atis_t), "error": atis_err},
+                "traffic": {"updated": iso(traffic_t), "error": traffic_err, "provider": "adsb.lol"},
                 "flightaware": {"updated": iso(fa_t), "error": fa_err, "url": f"https://www.flightaware.com/live/airport/{fa_key}"},
                 "metar": {"updated": iso(wx_t), "error": wx_err},
                 "notam": {"updated": iso(pib_t), "error": pib_err, "provider": "NATS AIS PIB"},
@@ -235,6 +252,18 @@ class App:
         }
 
     # --- handlers -------------------------------------------------------------------
+    async def h_traffic(self, request):
+        """Lightweight endpoint the screens poll every ~15 s to keep the live-traffic list moving."""
+        cfg = self.settings.effective(request.query)
+        ap = airports.resolve(cfg["airport"])
+        if not ap:
+            raise web.HTTPNotFound(text="unknown airport")
+        wx, _, _ = await self._weather(ap)
+        traffic, err, _ = await self.traffic(ap, cfg, wx)
+        resp = web.json_response({"traffic": traffic, "error": err, "generated_at": datetime.now(timezone.utc).isoformat()})
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
     async def h_data(self, request):
         cfg = self.settings.effective(request.query)
         overrides = [k for k in request.query if k in self.settings.values and request.query[k] != ""]
@@ -304,6 +333,7 @@ def make_app() -> web.Application:
     app.router.add_get("/api/settings", a.h_settings_get)
     app.router.add_get("/api/settings/version", a.h_settings_version)
     app.router.add_get("/api/links", a.h_links)
+    app.router.add_get("/api/traffic", a.h_traffic)
     app.router.add_post("/api/settings", a.h_settings_post)
     app.router.add_route("OPTIONS", "/api/{tail:.*}", a.h_health)
     app.router.add_get("/health", a.h_health)

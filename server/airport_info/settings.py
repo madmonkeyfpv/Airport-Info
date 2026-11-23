@@ -25,6 +25,9 @@ DEFAULTS = {
     # Opening hours override, UK local. Blank = use data/opening_hours.json for the airport (EGSU included).
     # Formats: "0900-1700", "MON-FRI 0800-1800, SAT SUN 0900-1700", "15MAR-15OCT 1000-1800; 16OCT-14MAR 1000-1600", "H24".
     "service_hours": "",
+    "show_traffic": True,         # live nearby traffic (ADS-B via adsb.lol) in the arrivals panel
+    "traffic_range_nm": 10,       # how far from the airfield to show traffic
+    "traffic_max_ft_agl": 3000,   # ignore aircraft higher than this above the airfield (transit / airliners)
     "view": "board",              # board | weather | rotate  (rotate alternates both)
     "rotate_seconds": 30,         # time on each page when view = rotate
 }

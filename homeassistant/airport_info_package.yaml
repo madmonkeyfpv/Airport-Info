@@ -43,6 +43,13 @@ rest:
         value_template: "{{ value_json.airspace.summary.state if value_json.airspace else 'unknown' }}"
         json_attributes_path: "$.airspace"
         json_attributes: [cards, summary]
+      - name: Airport Info Nearby Traffic
+        unique_id: airport_info_nearby_traffic
+        # Aircraft seen by ADS-B near the airfield (within the settings' radius/ceiling); list in attributes
+        value_template: "{{ value_json.traffic.aircraft | length if value_json.traffic else none }}"
+        unit_of_measurement: aircraft
+        json_attributes_path: "$.traffic"
+        json_attributes: [aircraft]
       - name: Airport Info ATIS
         unique_id: airport_info_atis
         # Letter of the most recent text ATIS (only large airports publish one); unknown otherwise

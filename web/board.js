@@ -40,6 +40,7 @@ const ICON = {
   doc: svg('<path d="M6 2h8l5 5v15H6z" fill="currentColor" opacity=".9"/><path d="M9 12h7M9 16h7M9 8h3" stroke="#0b1626" stroke-width="1.8" stroke-linecap="round"/>'),
   clock: svg('<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.2" fill="none"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/>'),
   radio: svg('<path d="M4 9a10 10 0 0 1 16 0M7 12a6 6 0 0 1 10 0M10 15a2.5 2.5 0 0 1 4 0" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/><circle cx="12" cy="18.5" r="1.8" fill="currentColor"/>'),
+  radar: svg('<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.6" fill="none" opacity=".7"/><path d="M12 12L18.5 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="16.5" cy="9.5" r="1.6" fill="currentColor"/>'),
   wind: svg('<path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>'),
 };
 
@@ -109,6 +110,36 @@ function renderDeparture(f, ctx) {
       </div>
     </div>
   </div>`;
+}
+
+// ---- live nearby traffic (ADS-B) -----------------------------------------------------------
+const TRAFFIC_LABEL = {
+  approaching: 'APPROACHING', circuit: 'IN THE CIRCUIT', ground: 'ON THE GROUND', departed: 'JUST DEPARTED', nearby: 'NEARBY',
+};
+function renderTrafficItem(a) {
+  const vs = a.vs_fpm;
+  const trend = vs === null || vs === undefined || Math.abs(vs) < 200 ? '' : vs > 0 ? ` ↑${Math.round(vs / 100) * 100}` : ` ↓${Math.round(-vs / 100) * 100}`;
+  const height = a.status === 'ground' ? 'ON GROUND' : `${a.alt_ft.toLocaleString('en-GB')} FT${trend}`;
+  const pill = a.status === 'approaching' && a.eta_min ? `APPROACHING · ~${a.eta_min} MIN` : TRAFFIC_LABEL[a.status];
+  return `<div class="aib-traffic ${esc(a.status)} ${a.emergency ? 'emergency' : ''}">
+    <div class="aib-traffic-left">
+      <div class="aib-traffic-ident">${esc(a.ident)}${a.callsign ? ` <span class="aib-traffic-cs">${esc(a.callsign)}</span>` : ''}</div>
+      <div class="aib-traffic-type">${esc(a.type_name || 'Type not broadcast')}</div>
+    </div>
+    <div class="aib-traffic-right">
+      <span class="aib-traffic-pill">${a.emergency ? `EMERGENCY ${esc(a.squawk || '')}` : esc(pill)}</span>
+      <div class="aib-traffic-pos">${esc(a.distance_nm)} NM ${esc(a.bearing)} · ${esc(height)}${a.gs_kt ? ` · ${esc(a.gs_kt)} KT` : ''}</div>
+    </div>
+  </div>`;
+}
+export function renderTraffic(traffic, ctx, icao, list = traffic?.aircraft || [], label = `LIVE TRAFFIC NEAR ${icao}`) {
+  if (!traffic) return '';
+  const head = `<div class="aib-traffic-head"><span>${ICON.radar}${esc(label)}</span><span>${esc(traffic.range_nm)} NM · BELOW ${esc(Number(traffic.max_ft_agl).toLocaleString('en-GB'))} FT</span></div>`;
+  const MAX = 8;  // big airports can have dozens of aircraft on the ground; keep the panel readable
+  const more = list.length > MAX ? `<div class="aib-traffic-none">+${list.length - MAX} more within ${esc(traffic.range_nm)} NM</div>` : '';
+  const body = list.length ? list.slice(0, MAX).map(renderTrafficItem).join('') + more
+    : `<div class="aib-traffic-none">No aircraft seen within ${esc(traffic.range_nm)} NM right now</div>`;
+  return `<div class="aib-traffic-block">${head}${body}<div class="aib-traffic-note">ADS-B · only aircraft with transponders · not a flight plan</div></div>`;
 }
 
 const emptyFlights = (text, sub) => `<div class="aib-empty">
@@ -327,8 +358,38 @@ export function renderBoard(data, opts = {}) {
   const panel = data.airspace;
   const unavailable = what => `<div class="aib-unavailable">${what} TEMPORARILY UNAVAILABLE<br><span>Retrying automatically</span></div>`;
 
-  const arrivalsHtml = !arrivals ? unavailable('FLIGHT DATA') : arrivals.length ? arrivals.map(f => renderArrival(f, ctx)).join('') : emptyFlights('NO FLIGHT PLANS SCHEDULED', 'No inbound aircraft currently reported');
-  const departuresHtml = !departures ? unavailable('FLIGHT DATA') : departures.length ? departures.map(f => renderDeparture(f, ctx)).join('') : emptyFlights('NO FLIGHT PLANS SCHEDULED', 'No scheduled departures currently reported');
+  // Live nearby traffic (ADS-B) only fills a panel whose FlightAware list is BLANK (empty or unavailable) — busy
+  // airports with real schedules in both panels show no live traffic at all.
+  //   both blank      -> arrivals: approaching / circuit / nearby;  departures: just departed / on the ground
+  //   one blank       -> that panel shows the whole live list
+  const traffic = cfg.show_traffic === false ? null : data.traffic;
+  const icao = data.airport.icao || data.airport.iata;
+  const arrBlank = !arrivals || !arrivals.length, depBlank = !departures || !departures.length;
+  const ARR_SIDE = new Set(['approaching', 'circuit', 'nearby']);
+  const all = traffic?.aircraft || [];
+  let arrTraffic = null, depTraffic = null, arrLabel = `LIVE TRAFFIC NEAR ${icao}`, depLabel = `LIVE TRAFFIC NEAR ${icao}`;
+  if (traffic && arrBlank && depBlank) {
+    arrTraffic = all.filter(a => ARR_SIDE.has(a.status)); arrLabel = `INBOUND & LOCAL TRAFFIC · ${icao}`;
+    depTraffic = all.filter(a => !ARR_SIDE.has(a.status)); depLabel = `DEPARTING & ON THE GROUND · ${icao}`;
+  } else if (traffic && arrBlank) arrTraffic = all;
+  else if (traffic && depBlank) depTraffic = all;
+
+  const panelHtml = (flights, render, slice, label, emptySub, emptyLive) => {
+    const planned = !flights ? unavailable('FLIGHT DATA') : flights.map(render).join('');
+    if (flights && flights.length) return planned;                  // real flight plans: no live traffic here
+    if (!slice) return flights ? emptyFlights('NO FLIGHT PLANS SCHEDULED', emptySub) : planned;
+    if (!slice.length) {
+      return (flights ? emptyFlights('NO FLIGHT PLANS SCHEDULED', emptyLive) : planned)
+        + `<div class="aib-traffic-note center">Live traffic near ${esc(icao)} appears here automatically</div>`;
+    }
+    return planned + (flights ? `<div class="aib-noplans">No flight plans filed · showing live traffic</div>` : '')
+      + renderTraffic(traffic, ctx, icao, slice, label);
+  };
+  const arrivalsHtml = panelHtml(arrivals, f => renderArrival(f, ctx), arrTraffic, arrLabel,
+    'No inbound aircraft currently reported', `No inbound flight plans · no traffic within ${esc(traffic?.range_nm)} NM`);
+  const departuresHtml = panelHtml(departures, f => renderDeparture(f, ctx), depTraffic, depLabel,
+    'No scheduled departures currently reported', 'No flight plans filed · nothing departing right now');
+  const nearby = slice => slice ? ` · ${slice.length} NEARBY` : '';
   const notamHtml = !notams ? unavailable('NOTAM FEED') : notams.length ? notams.map(n => renderNotam(n, ctx)).join('') : `<div class="aib-notam-empty">${ICON.check}<div>NO OPERATIONAL NOTAMS REPORTED</div></div>`;
   const airspaceHtml = !panel ? unavailable('AIRSPACE STATUS') : `
       <div class="aib-area-heading">RESTRICTED &amp; DANGER AREAS · ${esc(cfg.airspace_range_nm)} NM</div>
@@ -341,6 +402,7 @@ export function renderBoard(data, opts = {}) {
   const footer = `<footer class="aib-footer">
     <span>FLIGHTS: FLIGHTAWARE ${esc(upd(src.flightaware?.updated))}${src.flightaware?.error ? ' ⚠' : ''}</span>
     <span>NOTAM: NATS AIS ${esc(upd(src.notam?.updated))}${src.notam?.error ? ' ⚠' : ''}</span>
+    ${traffic ? `<span>TRAFFIC: ADSB.LOL ${esc(upd(src.traffic?.updated))}${src.traffic?.error ? ' ⚠' : ''}</span>` : ''}
     <span>WX: ${wx ? `METAR ${esc(wx.source_icao)} ${esc(F.zulu(d(wx.observed)))}` : 'UNAVAILABLE'}</span>
     ${overrideBadge(data)}
     <span class="aib-footer-warn">INFORMATION ONLY · NOT FOR OPERATIONAL USE · ALWAYS CHECK OFFICIAL SOURCES</span>
@@ -353,11 +415,11 @@ export function renderBoard(data, opts = {}) {
     <main class="aib-layout">
       <div class="aib-row aib-top">
         <section class="aib-panel" data-panel="arrivals">
-          <div class="aib-panel-header"><span>${ICON.landing}LIVE &amp; EXPECTED ARRIVALS</span><span class="aib-count">${countLabel(arrivals?.length)}</span></div>
+          <div class="aib-panel-header"><span>${ICON.landing}LIVE &amp; EXPECTED ARRIVALS</span><span class="aib-count">${countLabel(arrivals?.length)}${nearby(arrTraffic)}</span></div>
           <div class="aib-panel-body aib-scroll">${arrivalsHtml}</div>
         </section>
         <section class="aib-panel" data-panel="departures">
-          <div class="aib-panel-header"><span>${ICON.takeoff}EXPECTED DEPARTURES</span><span class="aib-count">${countLabel(departures?.length)}</span></div>
+          <div class="aib-panel-header"><span>${ICON.takeoff}EXPECTED DEPARTURES</span><span class="aib-count">${countLabel(departures?.length)}${nearby(depTraffic)}</span></div>
           <div class="aib-panel-body aib-scroll">${departuresHtml}</div>
         </section>
       </div>
@@ -576,6 +638,37 @@ export const BOARD_CSS = `
 .aib-summary.hot { background: #422327; border-color: var(--red); } .aib-summary.hot .aib-summary-state { color: var(--pink); }
 .aib-summary.warning { background: #3d2d1b; border-color: var(--orange); } .aib-summary.warning .aib-summary-state { color: var(--orange); }
 .aib-summary.scheduled { background: #403521; border-color: #e3b15c; } .aib-summary.scheduled .aib-summary-state { color: var(--amber); }
+
+/* live traffic */
+.aib-noplans { font-size: clamp(10px, .8vw, 14px); font-weight: 800; letter-spacing: .06em; color: var(--muted); padding: 2px 2px 0; }
+.aib-traffic-block { display: flex; flex-direction: column; gap: 7px; }
+.aib-traffic-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; padding: 0 2px;
+  font-size: clamp(10px, .82vw, 14px); font-weight: 800; letter-spacing: .07em; color: var(--sky); }
+.aib-traffic-head span:first-child { display: flex; align-items: center; gap: 7px; }
+.aib-traffic-head span:last-child { color: var(--dim); font-size: .85em; }
+.aib-traffic { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 13px; border-radius: 9px;
+  background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid #41586f; border-left: 5px solid #607a92; }
+.aib-traffic.approaching { border-left-color: var(--orange); background: linear-gradient(180deg, #3a2c1b, #2e2517); }
+.aib-traffic.circuit { border-left-color: var(--amber); }
+.aib-traffic.ground { border-left-color: var(--blue); }
+.aib-traffic.departed { border-left-color: var(--green); }
+.aib-traffic.emergency { border-color: var(--red); border-left-color: var(--red); animation: aib-pulse 1.4s ease-in-out infinite; }
+.aib-traffic-left { min-width: 0; }
+.aib-traffic-ident { font-size: clamp(16px, 1.35vw, 25px); font-weight: 800; color: #fff; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aib-traffic-cs { font-size: .6em; color: var(--muted); font-weight: 700; margin-left: 4px; }
+.aib-traffic-type { margin-top: 2px; font-size: clamp(11px, .85vw, 15px); color: #dce7f1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aib-traffic-right { flex: 0 0 auto; text-align: right; }
+.aib-traffic-pill { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: clamp(9px, .72vw, 13px); font-weight: 800; letter-spacing: .05em;
+  background: rgba(255,255,255,.08); color: var(--muted); }
+.aib-traffic.approaching .aib-traffic-pill { background: var(--orange); color: #08111e; }
+.aib-traffic.circuit .aib-traffic-pill { background: var(--amber); color: #08111e; }
+.aib-traffic.ground .aib-traffic-pill { background: var(--blue); color: #08111e; }
+.aib-traffic.departed .aib-traffic-pill { background: var(--green); color: #08111e; }
+.aib-traffic.emergency .aib-traffic-pill { background: var(--red); color: #fff; }
+.aib-traffic-pos { margin-top: 4px; font-size: clamp(10px, .8vw, 14px); font-weight: 700; color: var(--muted); white-space: nowrap; }
+.aib-traffic-none { padding: 10px 4px; font-size: clamp(11px, .85vw, 15px); color: var(--dim); font-weight: 700; }
+.aib-traffic-note { font-size: clamp(8px, .62vw, 11px); font-weight: 700; letter-spacing: .05em; color: var(--dim); padding: 0 2px; }
+.aib-traffic-note.center { text-align: center; }
 
 /* radio strip */
 .aib-radio { flex: 0 0 auto; display: flex; align-items: stretch; gap: 10px; padding: 8px 12px 0; min-width: 0; }

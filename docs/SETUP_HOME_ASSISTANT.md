@@ -71,7 +71,8 @@ On the add-on's **Info** tab:
 3. Choose the **Screen**: *Information board*, *Weather station*, or *Rotate* (alternates the two).
 4. Tap **SAVE SETTINGS**. Every screen switches within about 5 seconds.
 
-Units, 12/24-hour clock, theme, airspace radius and opening hours are on the same page. Duxford's opening hours
+Units, 12/24-hour clock, theme, airspace radius, opening hours and **live traffic** (on/off, radius, ceiling) are on
+the same page. Duxford's opening hours
 are built in.
 
 ## 4. Put it on your screens
@@ -93,7 +94,7 @@ your Home Assistant's real IP, each with a **COPY** button.
 
 1. **Add the resource.** Settings → Dashboards → **⋮** → **Resources** → **Add resource**:
    - **URL:** copy *HA card resource — RECOMMENDED* from Screen addresses. It looks like
-     `/local/airport-info/card/airport-info-card.js?v=0.2.6`.
+     `/local/airport-info/card/airport-info-card.js?v=0.3.0`.
    - **Type:** JavaScript module.
 
    No *Resources* option? Turn on **Advanced mode** in your user profile first.
@@ -135,7 +136,7 @@ If you use the dashboard card, after updating:
 | **"Custom element doesn't exist: airport-info-card"** | 1. Update the add-on to 0.2.6 or later and restart it. 2. Check the resource matches Screen addresses and is a **JavaScript module**. 3. Refresh, or reset the frontend cache in the app. |
 | **Card: "…needs an administrator account"** | Sign in as an admin on that screen, or see *Non-admin screens* below. |
 | **"Cannot start app … port is already in use"** | Change the port under Configuration → Network (see step 2). |
-| **"No flight plans scheduled"** | Normal at small airfields. FlightAware only lists flights with a filed plan or tracking. |
+| **"No flight plans scheduled"** | Normal at small airfields: most VFR flights don't file a plan. That panel then shows **live traffic** instead. Inbound and local aircraft go under arrivals; departing and on-ground aircraft go under departures. Panels that have real flight plans never show live traffic. |
 | **Orange "SCREEN PINNED TO …" badge** | That screen's address contains `?airport=` (or its card has `airport:`). Remove it to follow the settings page. |
 
 <details>
@@ -147,6 +148,7 @@ If you use the dashboard card, after updating:
 | Add-on fails to install | Check **Settings → System → Logs → Supervisor**. The build needs internet access. |
 | *Airport Info* missing from the store (local install) | `config.yaml` must sit directly inside `addons/airport_info/`. Check for updates, then refresh. |
 | "FLIGHT DATA / NOTAM FEED TEMPORARILY UNAVAILABLE" | A data source is down or slow. It retries automatically, and the footer shows the last update time. |
+| A plane I can see isn't in **Live traffic** | Live traffic only shows aircraft broadcasting ADS-B or Mode S that community receivers can hear, within the radius and below the ceiling set on the settings page. Some microlights and gliders don't broadcast. |
 | Radio strip says **NO NOTAM CHANGES** rather than open/closed | No opening hours are known for that airfield. Add them on the settings page. |
 | Settings won't save: "Admin token required" | Type the `admin_token` from the add-on's Configuration tab into the settings page's Admin box. |
 | A TV address won't load | Open `http://<HA-IP>:8765/health`; it should say `"ok": true`. Check the add-on is running and the port matches. |

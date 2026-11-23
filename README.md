@@ -9,6 +9,8 @@ Two screens, plus a settings page. Default airport: **EGSU Duxford**.
 
 - **Information board** (`/`):
   - live and expected arrivals/departures, with "arriving within 30/60 minutes" alerts;
+  - **live traffic near the airfield** from ADS-B (approaching with ETA, in the circuit, just departed). It appears
+    only in a panel with no flight plans, which fills the gap at small fields where nobody files them;
   - interpreted NOTAMs, latest activity, and local restricted/danger airspace with live activation status;
   - a **radio strip**: the airfield's frequencies, an open/closed estimate from NOTAMs and opening hours, and
     the current ATIS letter where a real text ATIS exists.
@@ -25,6 +27,7 @@ Two screens, plus a settings page. Default airport: **EGSU Duxford**.
 <p>
   <img src="docs/screenshots/phone_egbb.jpg" alt="Phone: information board" width="270">
   <img src="docs/screenshots/weather_phone_egsu.jpg" alt="Phone: weather station" width="270">
+  <img src="docs/screenshots/traffic_phone_egsu.jpg" alt="Phone: live traffic at Duxford" width="270">
   <br><em>On a phone the same pages become a scrolling layout.</em>
 </p>
 
@@ -46,6 +49,7 @@ or `docker compose up -d --build`.
 - Flights: FlightAware airport board (web scrape)
 - NOTAMs: NATS AIS PIB feed (free, official UK)
 - Airspace: UK AIP ENR 5.1 areas (YAIXM dataset, scraped) + NOTAM activations
+- Live nearby traffic: ADS-B via [adsb.lol](https://adsb.lol) (open data, ODbL)
 - Weather: METAR via aviationweather.gov
 
 **Information only — not for operational use. Always check official sources before flight.**

@@ -22,7 +22,7 @@
 import { renderBoard, BOARD_CSS, tickClocks, autoScroll } from '../board.js';
 import { renderWeather, WEATHER_CSS, tickWeatherClock } from '../weather.js';
 
-const VERSION = '0.2.6';
+const VERSION = '0.3.0';
 
 class AirportInfoCard extends HTMLElement {
   setConfig(config) {
@@ -117,7 +117,7 @@ class AirportInfoCard extends HTMLElement {
   disconnectedCallback() { this._stop(); }
 
   _stop() {
-    clearTimeout(this._timer); clearTimeout(this._rotate); clearInterval(this._tick); clearInterval(this._rerender); clearInterval(this._sync); clearInterval(this._sessionTimer);
+    clearTimeout(this._timer); clearTimeout(this._rotate); clearInterval(this._tick); clearInterval(this._rerender); clearInterval(this._sync); clearInterval(this._sessionTimer); clearInterval(this._trafficTimer);
     this._rotate = null;
     if (this._stopScroll) this._stopScroll();
     this._timer = this._tick = this._rerender = this._stopScroll = null;
@@ -128,6 +128,22 @@ class AirportInfoCard extends HTMLElement {
     this._load();
     this._tick = setInterval(() => { if (this._data) { tickClocks(this._root, this._data.settings); tickWeatherClock(this._root); } }, 1000);
     this._rerender = setInterval(() => this._render(), 30000);
+    // Live nearby traffic: refresh just that part every 15 s.
+    this._trafficTimer = setInterval(async () => {
+      if (!this._data || this._trafficBusy || this._data.settings?.show_traffic === false) return;
+      this._trafficBusy = true;
+      try {
+        const r = await this._fetch(`api/traffic?${this._query()}`);
+        if (r.ok) {
+          const t = await r.json();
+          if (t.traffic) {
+            this._data.traffic = t.traffic;
+            this._data.sources = { ...this._data.sources, traffic: { ...(this._data.sources?.traffic || {}), updated: t.generated_at, error: t.error } };
+            if (this._page !== 'weather') this._render();
+          }
+        }
+      } catch (e) { /* next tick retries */ } finally { this._trafficBusy = false; }
+    }, 15000);
     // Follow the settings page: reload as soon as the saved settings change (polls a tiny fingerprint).
     this._sync = setInterval(async () => {
       if (!this._data || this._checking) return;
