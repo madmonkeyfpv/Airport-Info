@@ -4,6 +4,7 @@ Endpoints
   GET  /api/data?airport=EGSU[&other setting overrides]  -> everything the display needs
   GET  /api/airports?q=glou                               -> airport search (UK)
   GET  /api/settings                                      -> current saved settings
+  GET  /api/links                                         -> LAN addresses + host port for TVs (settings page)
   GET  /api/settings/version                              -> settings fingerprint (screens poll every 5 s to stay in sync)
   POST /api/settings  (JSON body; header X-Admin-Token if ADMIN_TOKEN is set)
   GET  /health
@@ -32,6 +33,7 @@ from . import __version__, airports
 from .airspace import AirspaceDB, build_panel
 from .flightaware import fetch_board
 from .notams import PIB_URL, aerodrome_notams, nearby_airspace_notams, parse_pib
+from .links import screen_links
 from .radio import build_radio, fetch_datis
 from .settings import Settings
 from .weather import fetch_weather
@@ -225,6 +227,12 @@ class App:
     async def h_airports(self, request):
         return web.json_response(airports.search(request.query.get("q", "")))
 
+    async def h_links(self, request):
+        """Addresses for TVs / kiosk browsers (real LAN IP + host port), shown on the settings page."""
+        resp = web.json_response(await screen_links(self.session, request))
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
     async def h_settings_version(self, _request):
         resp = web.json_response({"version": self.settings.version, "airport": self.settings.values["airport"]})
         resp.headers["Cache-Control"] = "no-store"
@@ -277,6 +285,7 @@ def make_app() -> web.Application:
     app.router.add_get("/api/airports", a.h_airports)
     app.router.add_get("/api/settings", a.h_settings_get)
     app.router.add_get("/api/settings/version", a.h_settings_version)
+    app.router.add_get("/api/links", a.h_links)
     app.router.add_post("/api/settings", a.h_settings_post)
     app.router.add_route("OPTIONS", "/api/{tail:.*}", a.h_health)
     app.router.add_get("/health", a.h_health)

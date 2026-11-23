@@ -36,6 +36,22 @@
   #msg { font-weight: 700; } #msg.ok { color: var(--green); } #msg.err { color: var(--red); }
   .hint { padding: 0 16px 16px; color: #7f95ab; font-size: 14px; }
   code { color: var(--sky); }
+  .links { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .links-base { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+  .links-base label { flex: 1 1 260px; }
+  .link-row { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    padding: 9px 10px; border-radius: 8px; background: #0d1a2a; border: 1px solid var(--line); }
+  .link-row b { font-size: 13px; letter-spacing: .05em; color: var(--text); display: block; }
+  .link-row small { color: #7f95ab; font-size: 12px; }
+  .link-url { font: 600 14px "JetBrains Mono", Consolas, monospace; color: var(--sky); overflow-wrap: anywhere; user-select: all; }
+  pre.link-url { margin: 0; white-space: pre-wrap; }
+  .link-actions { display: flex; gap: 6px; }
+  .link-actions button, .link-actions a { font: 800 12px Barlow, Arial, sans-serif; letter-spacing: .05em; padding: 7px 11px; border-radius: 7px;
+    border: 1px solid var(--line); background: #1c3045; color: var(--text); cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .link-actions button.done { background: var(--green); color: #08111e; }
+  .links-note { color: #a9bfd4; font-size: 14px; }
+  .links-note.warn { color: #f0a34c; }
+  @media (max-width: 700px) { .link-row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -83,6 +99,22 @@
         <label>Published opening hours (UK local) <small>Used to estimate whether frequencies are open, e.g. <code>0900-1700</code> or <code>MON-FRI 0800-1800, SAT SUN 0900-1700</code>, seasonal <code>15MAR-15OCT 1000-1800; 16OCT-14MAR 1000-1600</code>, <code>H24</code>. Blank = built-in published hours where known (Duxford), otherwise NOTAMs only.</small><input name="service_hours" maxlength="120"></label>
         <label class="check"><input type="checkbox" name="include_obstacle_notams"> Include obstacle NOTAMs</label>
         <label class="check"><input type="checkbox" name="include_airspace_notams"> Include airspace / warning NOTAMs in the NOTAM list</label>
+      </div>
+    </section>
+
+    <section id="linksSec">
+      <h2>SCREEN ADDRESSES — COPY INTO A TV OR KIOSK BROWSER</h2>
+      <div class="links">
+        <div class="links-base">
+          <label>Device address <small>Your Home Assistant / server address on the home network</small>
+            <select id="linkBase"></select>
+          </label>
+          <label>Custom address <small>Optional, e.g. <code>http://192.168.1.50:8765</code></small>
+            <input id="linkCustom" placeholder="http://IP:PORT" autocomplete="off">
+          </label>
+        </div>
+        <div id="linksNote" class="links-note"></div>
+        <div id="linkRows"></div>
       </div>
     </section>
 
@@ -183,7 +215,65 @@ f.addEventListener('submit', async e => {
   if (r.ok) say('Saved ✓ — all screens switch within about 5 seconds.', true);
   else say('Could not save: ' + (await r.text()));
 });
-load().catch(err => say('Could not reach the server: ' + err.message));
+// ---- Screen addresses -------------------------------------------------------------------
+const linkBase = document.getElementById('linkBase');
+const linkCustom = document.getElementById('linkCustom');
+const linkRows = document.getElementById('linkRows');
+const linksNote = document.getElementById('linksNote');
+const escH = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+async function copyText(text, btn) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {  // http:// pages have no clipboard API: fall back to a hidden textarea
+    const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+  }
+  btn.textContent = 'COPIED ✓'; btn.classList.add('done');
+  setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('done'); }, 1500);
+}
+
+function renderLinks() {
+  const base = (linkCustom.value.trim() || linkBase.value || '').replace(/\/$/, '');
+  if (!base) { linkRows.innerHTML = ''; return; }
+  const rot = f.elements.rotate_seconds?.value || 30;
+  const rows = [
+    ['Information board', 'TV / kiosk — no settings button', `${base}/?kiosk`],
+    ['Weather station', 'TV / kiosk — wind rose & runways', `${base}/?view=weather&kiosk`],
+    ['Rotate board ↔ weather', `TV / kiosk — ${rot} s each`, `${base}/?view=rotate&rotate_seconds=${rot}&kiosk`],
+    ['Information board', 'with ⚙ settings button', `${base}/`],
+    ['Weather station', 'with ⚙ settings button', `${base}/?view=weather`],
+    ['Settings page', 'this page', `${base}/settings.html`],
+    ['HA dashboard card resource', 'Settings → Dashboards → Resources (JavaScript module)', `${base}/card/airport-info-card.js`],
+    ['HA dashboard card', 'paste into a dashboard card (YAML)', `type: custom:airport-info-card\nserver: ${base}\nview: board        # board | weather | rotate\nrotate_seconds: ${rot}\nfull_screen: true`, true],
+    ['Health check', 'should show "ok": true', `${base}/health`],
+  ];
+  linkRows.innerHTML = rows.map(([t, sub, url, multi], i) => `<div class="link-row">
+      <div><b>${escH(t)}</b><small>${escH(sub)}</small></div>
+      ${multi ? `<pre class="link-url">${escH(url)}</pre>` : `<div class="link-url">${escH(url)}</div>`}
+      <div class="link-actions"><button type="button" data-i="${i}">COPY</button>${multi ? '' : `<a href="${escH(url)}" target="_blank" rel="noopener">OPEN</a>`}</div>
+    </div>`).join('');
+  linkRows.querySelectorAll('button[data-i]').forEach(b => b.addEventListener('click', () => copyText(rows[+b.dataset.i][2], b)));
+}
+
+async function loadLinks() {
+  let info = { bases: [] };
+  try { info = await (await fetch(`${BASE}api/links`, { cache: 'no-store' })).json(); } catch {}
+  const viaIngress = location.pathname.includes('/hassio_ingress/');
+  const bases = [...(info.bases || [])];
+  if (!viaIngress && !bases.some(b => b.base === location.origin)) bases.push({ label: `This browser's address (${location.host})`, base: location.origin });
+  linkBase.innerHTML = bases.map(b => `<option value="${escH(b.base)}">${escH(b.label)}</option>`).join('') || '<option value="">(no address found — enter one)</option>';
+  const notes = [];
+  if (info.direct_port_disabled) notes.push(['warn', 'The add-on\'s direct port is turned off, so TVs can\'t reach it. Add-on → Configuration → Network: enter a port (e.g. 8765) → Save → Restart.']);
+  if (info.ha_addon) notes.push(['', `Detected from Home Assistant${info.port ? ` · host port ${info.port}` : ''}. Use these on devices on the same home network. The Home Assistant sidebar entry “Airport Info” works without them.`]);
+  if (viaIngress && !(info.bases || []).length) notes.push(['warn', 'Couldn’t detect this device’s network address — enter it as a custom address, e.g. http://192.168.1.50:8765.']);
+  linksNote.innerHTML = notes.map(([c, t]) => `<div class="links-note ${c}">${escH(t)}</div>`).join('');
+  renderLinks();
+}
+linkBase.addEventListener('change', renderLinks);
+linkCustom.addEventListener('input', renderLinks);
+f.elements.rotate_seconds?.addEventListener('input', renderLinks);
+
+load().then(loadLinks).catch(err => say('Could not reach the server: ' + err.message));
 </script>
 </body>
 </html>

@@ -30,6 +30,8 @@ server/airport_info/       Python aiohttp backend (API + static site)
   flightaware.py           FlightAware airport-board scraper (4 tables) -> flight dicts
   notams.py                NATS PIB parser, Q-code decoder, Item D schedule expansion, interpretation
   airspace.py              UK D/R/P areas (YAIXM dataset) + NOTAM activation -> panel cards/summary
+  links.py                 /api/links: LAN base URLs for TVs (Supervisor API: host IPs, hostname, mapped host port;
+                           fallback: request Host + outbound IP) → settings page "Screen addresses" with copy buttons
   radio.py                 radio strip: frequency grouping, NOTAM/hours open-closed ESTIMATE, D-ATIS scrape (atis.guru)
   weather.py               METAR (aviationweather.gov); falls back to nearest fresh METAR
   airports.py              UK airport lookup (ICAO/IATA/name search)
@@ -174,10 +176,17 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   Fix: run.sh exports everything (cd /app, PYTHONPATH, WEB_DIR, DATA_DIR=/data, PORT) and logs a start line;
   regression test test_startup.py; server __version__ now tracks add-on version. Add-on 0.2.3. 16 tests.
 
+- **2026-11-23** — Settings page "SCREEN ADDRESSES" section (owner request): every URL variant (board/weather/rotate
+  kiosk, with-gear versions, settings, card resource, card YAML, health) built on the device's REAL LAN IP + host port,
+  with COPY (clipboard API + execCommand fallback for http) and OPEN. Add-on now `hassio_api: true` (read-only) to
+  query Supervisor `/addons/self/info` (network["8080/tcp"] = host port), `/network/info`, `/host/info`.
+  SUPERVISOR_TOKEN read from /run/s6/container_environment (s6 wipes env). Tested with a mock Supervisor through the
+  ingress simulation. Add-on 0.2.4. 17 tests.
+
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
    Duxford hours now built in (data/opening_hours.json, from IWM pilot info; "mid-month" read as the 15th —
    confirm exact season change dates with Duxford ATC 01223 833376 if precision matters).
-2. Owner: update add-on to 0.2.1, Start it, choose airport, set up TVs (guide steps 2–4). Check add-on Log tab if issues.
+2. Owner: update add-on to 0.2.4, Start it, choose airport, set up TVs (guide steps 2–4). Check add-on Log tab if issues.
 3. Public hosting parked (owner: "keep it as is for now"). Options documented above if revisited.
 4. Optional: AIP published-hours parsing for danger areas; more NOTAM title rules from real-world feedback.
