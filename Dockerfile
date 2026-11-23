@@ -11,6 +11,7 @@ COPY server/ server/
 COPY web/ web/
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
+# Informational only: under s6-overlay (HA base image) ENV is reset before CMD runs, so run.sh sets these itself.
 ENV PYTHONPATH=/app/server PORT=8080 DATA_DIR=/data WEB_DIR=/app/web
 EXPOSE 8080
 CMD ["/run.sh"]

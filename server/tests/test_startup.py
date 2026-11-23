@@ -1,0 +1,51 @@
+"""Regression test: the container start script must work with a WIPED environment.
+
+The Home Assistant base image starts CMD through s6-overlay, which resets the environment, so Dockerfile
+ENV values (PYTHONPATH, WEB_DIR, DATA_DIR) never reach the app. run.sh must set everything itself.
+Add-on 0.2.0-0.2.2 failed on a real HA box with "No module named 'airport_info'" because of this.
+"""
+import json
+import pathlib
+import socket
+import subprocess
+import time
+import urllib.request
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+
+def _free_port():
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def test_run_sh_starts_with_empty_environment(tmp_path):
+    (tmp_path / "options.json").write_text(json.dumps({"admin_token": "secret"}))
+    port = _free_port()
+    env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "APP_DIR": str(ROOT), "DATA_DIR": str(tmp_path), "PORT": str(port)}
+    proc = subprocess.Popen(["sh", str(ROOT / "run.sh")], cwd="/", env=env,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    try:
+        body = None
+        for _ in range(60):
+            try:
+                body = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1))
+                break
+            except OSError:
+                if proc.poll() is not None:
+                    break
+                time.sleep(0.25)
+        assert body and body["ok"], proc.stdout.read().decode() if proc.poll() is not None else "no response"
+        # admin token from options.json is enforced
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/settings", data=b"{}", method="POST")
+        try:
+            urllib.request.urlopen(req, timeout=5)
+            raise AssertionError("save without admin token should be refused")
+        except urllib.error.HTTPError as e:
+            assert e.code == 401
+        # the web UI is served from the app directory
+        assert urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5).status == 200
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)

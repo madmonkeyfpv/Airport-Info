@@ -56,7 +56,7 @@ This guide writes **`<HA-IP>`** for the IP part, e.g. `192.168.1.50`.
 On the add-on's **Info** tab:
 1. Turn on **Start on boot**, **Watchdog** and **Show in sidebar**.
 2. Click **Start**.
-3. Open the **Log** tab. After a few seconds you should see `Running on http://0.0.0.0:8080`. That is the port
+3. Open the **Log** tab. After a few seconds you should see `[airport-info] starting: …` followed by `Running on http://0.0.0.0:8080`. That is the port
    *inside* the add-on; from your network it's reachable on port **8765**.
 
 Optional, on the **Configuration** tab:
@@ -171,6 +171,7 @@ For example, you could announce an arrival within 30 minutes.
 | Card says **CANNOT REACH AIRPORT INFO SERVER** | Check the add-on is running. Open `http://<HA-IP>:8765/health` in a browser; it should say `"ok": true`. Check the `server:` URL in the card. |
 | Dashboard card blank, or the browser console mentions *mixed content* | You opened HA over https. Use `http://<HA-IP>:8123` on that screen, or use Option 2 (sidebar). |
 | *Airport Info* missing from the store (Method B) | `config.yaml` must be directly inside `addons/airport_info/`. Run **Check for updates**, then refresh. |
+| Log repeats `No module named 'airport_info'` and the add-on keeps restarting | You have version 0.2.0–0.2.2. Update to **0.2.3** or later: Add-on Store → ⋮ → Check for updates → Update. |
 | Add-on fails to build | Look at **Settings → System → Logs → Supervisor**. The build needs internet access to download Python packages. |
 | **Cannot start app … port … is already in use** | Another add-on uses that port. Configuration tab → **Network** → pick another number, e.g. 8766 → Save → Start. Then use that number in TV URLs, the card `server:` and the sensor package. The sidebar panel is unaffected. |
 | "No flight plans scheduled" | This is normal at small airfields. FlightAware only lists flights with filed plans or tracking. |

@@ -87,6 +87,9 @@ the METAR source/age line). Mobile layout (reference/IMG_2710) → responsive st
 layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
 
 ## Conventions
+- **Container start: `run.sh` must set PYTHONPATH/WEB_DIR/DATA_DIR/PORT itself.** The HA base image runs CMD via
+  s6-overlay, which RESETS the environment, so Dockerfile `ENV` never reaches the app. Guarded by
+  `server/tests/test_startup.py` (starts run.sh with an empty environment).
 - Renderer is a pure function of the `/api/data` JSON — change UI in `web/board.js` only; both website and HA card pick it up.
 - All CSS classes prefixed `aib-`. Colours are CSS variables on `.aib-screen` (themes: navy, midnight, high-contrast).
 - Timestamps in the API are ISO-8601 UTC; formatting happens client-side (Europe/London).
@@ -165,6 +168,11 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
 - **2026-11-23** — Owner hit "Cannot start app … port 8080 is already in use" (another add-on owns host 8080).
   Workaround given: Network tab → 8765. Add-on 0.2.2 defaults the host port to 8765; guide/DOCS/dashboard/
   package/card examples updated to :8765 and a troubleshooting row added.
+
+- **2026-11-23** — Add-on log: `ModuleNotFoundError: No module named 'airport_info'` on every start (crash loop).
+  Root cause: s6-overlay in the HA base image resets the environment, dropping Dockerfile ENV PYTHONPATH.
+  Fix: run.sh exports everything (cd /app, PYTHONPATH, WEB_DIR, DATA_DIR=/data, PORT) and logs a start line;
+  regression test test_startup.py; server __version__ now tracks add-on version. Add-on 0.2.3. 16 tests.
 
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
