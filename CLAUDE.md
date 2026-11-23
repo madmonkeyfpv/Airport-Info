@@ -97,7 +97,8 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
 - Timestamps in the API are ISO-8601 UTC; formatting happens client-side (Europe/London).
 - New settings: add to `settings.DEFAULTS`, `settings.html` `fields` list + form control, and use via `cfg` in board.js / app.py.
 - Footer always shows "INFORMATION ONLY · NOT FOR OPERATIONAL USE" — keep it (safety).
-- Git: develop on the branch named by the session; PRs may be merged without asking the owner.
+- Git: develop on the branch named by the session; PRs may be merged without asking the owner,
+  **but only after the GitHub Actions `test` check on the PR has passed.**
 - **Releases to Home Assistant: bump `version` in root `config.yaml` (semver) in every PR that changes
   server/ or web/** — HA only offers "Update" when the version changes (Method A, public repo). Note the
   version in the changelog entry.
@@ -182,6 +183,11 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   query Supervisor `/addons/self/info` (network["8080/tcp"] = host port), `/network/info`, `/host/info`.
   SUPERVISOR_TOKEN read from /run/s6/container_environment (s6 wipes env). Tested with a mock Supervisor through the
   ingress simulation. Add-on 0.2.4. 17 tests.
+
+- **2026-11-23** — CI failure on PR #13 (merged before CI finished — don't do that: wait for the `test` check).
+  test_startup.py used a fixed PATH, so on GitHub runners it picked /usr/bin/python3 (no aiohttp) instead of
+  setup-python's interpreter. Fixed by putting dirname(sys.executable) first on the test PATH. Test-only; the add-on
+  image is unaffected (/usr/local/bin/python3 has the requirements).
 
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
