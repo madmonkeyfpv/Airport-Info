@@ -108,7 +108,8 @@ Set the browser to full screen. `kiosk` hides the settings button.
 ### Option 3: a full-screen Home Assistant dashboard (the card)
 Use this if the TV already shows a Home Assistant dashboard, e.g. a wall tablet running the HA app or a kiosk browser.
 1. **Add the card resource.** Settings → Dashboards → **⋮** → **Resources** → **Add resource**:
-   - URL: `http://<HA-IP>:8765/card/airport-info-card.js`
+   - URL: `http://<HA-IP>:8765/card/airport-info-card.js?v=0.2.5`. Copy the exact address from the settings
+     page's **Screen addresses**. Change the `?v=` number after each add-on update so browsers fetch the new card.
    - Type: **JavaScript module**
 
    If you don't see *Resources*, turn on **Advanced mode** in your user profile.
@@ -173,6 +174,7 @@ For example, you could announce an arrival within 30 minutes.
 | What you see | Fix |
 |---|---|
 | Card says **CANNOT REACH AIRPORT INFO SERVER** | Check the add-on is running. Open `http://<HA-IP>:8765/health` in a browser; it should say `"ok": true`. Check the `server:` URL in the card. |
+| **"Custom element doesn't exist: airport-info-card"** | The card's code didn't load. Check these in order: (1) add-on **0.2.5 or later** (0.2.4 and earlier blocked the card's helper files cross-site). (2) The resource exists, is type **JavaScript module**, and uses your port (copy it from **Screen addresses**). (3) You opened HA over **http://**, not https (see next row). (4) Hard-refresh the browser (Ctrl+Shift+R), or in the HA app: Settings → Companion app → Debugging → Reset frontend cache. Bump `?v=` on the resource URL if it still loads an old copy. |
 | Dashboard card blank, or the browser console mentions *mixed content* | You opened HA over https. Use `http://<HA-IP>:8123` on that screen, or use Option 2 (sidebar). |
 | *Airport Info* missing from the store (Method B) | `config.yaml` must be directly inside `addons/airport_info/`. Run **Check for updates**, then refresh. |
 | Log repeats `No module named 'airport_info'` and the add-on keeps restarting | You have version 0.2.0–0.2.2. Update to **0.2.3** or later: Add-on Store → ⋮ → Check for updates → Update. |

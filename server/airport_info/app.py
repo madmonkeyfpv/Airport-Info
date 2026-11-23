@@ -229,7 +229,7 @@ class App:
 
     async def h_links(self, request):
         """Addresses for TVs / kiosk browsers (real LAN IP + host port), shown on the settings page."""
-        resp = web.json_response(await screen_links(self.session, request))
+        resp = web.json_response({**await screen_links(self.session, request), "version": __version__})
         resp.headers["Cache-Control"] = "no-store"
         return resp
 
@@ -265,7 +265,9 @@ async def cors(request, handler):
         resp = web.Response()
     else:
         resp = await handler(request)
-    if request.path.startswith(("/api/", "/card/")):
+    # CORS: the HA dashboard card is loaded cross-origin (HA :8123 -> add-on :8765) as an ES module, and it
+    # imports ../board.js and ../weather.js — every module file needs the header, not just /card/*.
+    if request.path.startswith(("/api/", "/card/")) or request.path.endswith((".js", ".css")):
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Admin-Token"
         resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
