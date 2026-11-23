@@ -214,6 +214,12 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   phone, HA card, EGLL radio strip, settings + screen addresses); README rewritten with a screenshot gallery. Removed
   obsolete tv_egbj / ha_card_eglc_midnight images. Docs-only (no add-on version bump).
 
+- **2026-11-23** — Setup guide rewritten for readability (owner request), README-style: hero screenshot, 4-step quick
+  start table, one recommended install path (repo URL), "Which should I use?" table for screens, short dashboard-card
+  steps, top-5 troubleshooting with the rest + local install / sensors / non-admin / Docker in collapsible <details>.
+  Every label quoted in the guide matches the app text (checked). Docs-only.
+  Keep the guide in this style: lead with the common path, push rare cases into <details>.
+
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
    Duxford hours now built in (data/opening_hours.json, from IWM pilot info; "mid-month" read as the 15th —
