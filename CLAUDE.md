@@ -189,10 +189,17 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   setup-python's interpreter. Fixed by putting dirname(sys.executable) first on the test PATH. Test-only; the add-on
   image is unaffected (/usr/local/bin/python3 has the requirements).
 
+- **2026-11-23** — Owner: HA card "Custom element doesn't exist". Root cause: card is imported CROSS-ORIGIN (HA :8123 →
+  add-on :8765) as an ES module and imports ../board.js + ../weather.js, which had no CORS header (only /api/ and
+  /card/ did) → module graph blocked. Reproduced with a page on another port (Chromium console: blocked by CORS).
+  Fix: CORS on every .js/.css. Regression test test_card_modules_are_cors_enabled. /api/links returns `version`;
+  settings page card resource URL now ends `?v=<version>` for cache busting. Verified card renders cross-origin.
+  Add-on 0.2.5. 18 tests.
+
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
    Duxford hours now built in (data/opening_hours.json, from IWM pilot info; "mid-month" read as the 15th —
    confirm exact season change dates with Duxford ATC 01223 833376 if precision matters).
-2. Owner: update add-on to 0.2.4, Start it, choose airport, set up TVs (guide steps 2–4). Check add-on Log tab if issues.
+2. Owner: update add-on to 0.2.5, Start it, choose airport, set up TVs (guide steps 2–4). Check add-on Log tab if issues.
 3. Public hosting parked (owner: "keep it as is for now"). Options documented above if revisited.
 4. Optional: AIP published-hours parsing for danger areas; more NOTAM title rules from real-world feedback.

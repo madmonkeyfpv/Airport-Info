@@ -55,3 +55,30 @@ def test_run_sh_starts_with_empty_environment(tmp_path):
     finally:
         proc.terminate()
         proc.wait(timeout=10)
+
+
+def test_card_modules_are_cors_enabled(tmp_path):
+    """The HA card is imported cross-origin; it and the shared modules it imports must all send CORS headers.
+    (Missing on board.js/weather.js caused "Custom element doesn't exist: airport-info-card" in 0.2.4.)"""
+    port = _free_port()
+    path = os.pathsep.join([os.path.dirname(sys.executable), "/usr/local/bin", "/usr/bin", "/bin"])
+    env = {"PATH": path, "APP_DIR": str(ROOT), "DATA_DIR": str(tmp_path), "PORT": str(port)}
+    proc = subprocess.Popen(["sh", str(ROOT / "run.sh")], cwd="/", env=env,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(60):
+            try:
+                urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1)
+                break
+            except OSError:
+                time.sleep(0.25)
+        card = urllib.request.urlopen(f"http://127.0.0.1:{port}/card/airport-info-card.js", timeout=5)
+        imports = [line.split("'")[1] for line in card.read().decode().splitlines()
+                   if line.startswith("import ") and "'" in line]
+        assert imports, "card should import the shared renderers"
+        for rel in ["card/airport-info-card.js"] + [i.replace("../", "") for i in imports]:
+            r = urllib.request.urlopen(f"http://127.0.0.1:{port}/{rel}", timeout=5)
+            assert r.headers.get("Access-Control-Allow-Origin") == "*", rel
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)

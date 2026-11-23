@@ -1,6 +1,6 @@
 # Home Assistant add-on definition (this repository is both an add-on repository and the add-on).
 name: Airport Info
-version: "0.2.4"
+version: "0.2.5"
 slug: airport_info
 description: UK airport information screens — flights, NOTAMs, airspace, weather station, radio
 url: https://github.com/madmonkeyfpv/Airport-Info
