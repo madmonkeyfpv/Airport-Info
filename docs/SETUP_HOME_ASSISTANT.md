@@ -94,7 +94,7 @@ your Home Assistant's real IP, each with a **COPY** button.
 
 1. **Add the resource.** Settings → Dashboards → **⋮** → **Resources** → **Add resource**:
    - **URL:** copy *HA card resource — RECOMMENDED* from Screen addresses. It looks like
-     `/local/airport-info/card/airport-info-card.js?v=0.3.0`.
+     `/local/airport-info/card/airport-info-card.js?v=0.3.1`.
    - **Type:** JavaScript module.
 
    No *Resources* option? Turn on **Advanced mode** in your user profile first.
