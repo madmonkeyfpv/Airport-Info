@@ -49,6 +49,8 @@ config.yaml, run.sh,       HOME ASSISTANT ADD-ON lives at the REPO ROOT (reposit
   DOCS.md                  the repo is both the add-on repository and the add-on; build context = whole repo
 Dockerfile                 ONE image for plain Docker and the add-on: ghcr.io/home-assistant/base-python:3.13-alpine3.22
                            (multi-arch amd64+arm64, verified). NO build.yaml (deprecated by Supervisor). arch: amd64, aarch64
+                           PORTS: container always listens on 8080; HA add-on maps it to HOST 8765 by default (8080
+                           clashed on the owner's HA, v0.2.2); plain Docker/compose keeps 8080:8080. Ingress uses 8080 internally.
 docker-compose.yml         plain Docker deployment (settings persist in ./data)
 docs/screenshots/          rendered screenshots of the prototype (TV, phone, HA card, settings)
 tools/build_airports.py    regenerate the UK airport DB
@@ -159,6 +161,10 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
 - **2026-11-23** — Owner made the repo public and installed via the add-on repository: Supervisor log shows
   build + install of v0.2.0 OK on aarch64. Addressed log deprecations: removed build.yaml (base image now set in
   Dockerfile, multi-arch ghcr.io/home-assistant/base-python:3.13-alpine3.22), dropped armv7. Add-on v0.2.1.
+
+- **2026-11-23** — Owner hit "Cannot start app … port 8080 is already in use" (another add-on owns host 8080).
+  Workaround given: Network tab → 8765. Add-on 0.2.2 defaults the host port to 8765; guide/DOCS/dashboard/
+  package/card examples updated to :8765 and a troubleshooting row added.
 
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
