@@ -2,12 +2,12 @@
 // Renders the exact same board as the website (shared ../board.js) inside Home Assistant.
 //
 // Load as a dashboard resource (type: module), either straight from the Airport Info server:
-//     http://<server>:8080/card/airport-info-card.js
+//     http://<HA-IP>:8765/card/airport-info-card.js   (HA add-on; plain Docker: :8080)
 // or copied into /config/www/airport-info/ (copy board.js alongside, one folder up: see docs).
 //
 // Card config:
 //   type: custom:airport-info-card
-//   server: http://192.168.1.50:8080   # Airport Info server / add-on URL (required unless same origin)
+//   server: http://192.168.1.50:8765   # Airport Info add-on URL (plain Docker: :8080) (required unless same origin)
 //   airport: EGBJ                        # optional – PINS this screen to another airport (it then no longer
 //                                        #   follows the settings page; a warning is shown on screen). Leave unset.
 //   full_screen: true                    # optional – fixed full-viewport kiosk layout (default true)
@@ -123,7 +123,7 @@ class AirportInfoCard extends HTMLElement {
 
   getCardSize() { return 12; }
 
-  static getStubConfig() { return { server: 'http://homeassistant.local:8080', airport: 'EGSU' }; }
+  static getStubConfig() { return { server: 'http://homeassistant.local:8765', airport: 'EGSU' }; }
 }
 
 if (!customElements.get('airport-info-card')) {

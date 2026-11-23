@@ -56,18 +56,22 @@ This guide writes **`<HA-IP>`** for the IP part, e.g. `192.168.1.50`.
 On the add-on's **Info** tab:
 1. Turn on **Start on boot**, **Watchdog** and **Show in sidebar**.
 2. Click **Start**.
-3. Open the **Log** tab. After a few seconds you should see `Running on http://0.0.0.0:8080`.
+3. Open the **Log** tab. After a few seconds you should see `Running on http://0.0.0.0:8080`. That is the port
+   *inside* the add-on; from your network it's reachable on port **8765**.
 
 Optional, on the **Configuration** tab:
 - **admin_token:** set a password here to stop anyone who can see the screens from changing the settings. Leave it blank on a trusted home network.
-- **Network:** the board is also served directly on port **8080** for TVs and dashboards. If another add-on already uses 8080, change the *host* port, e.g. to 8090, and use that number wherever this guide says `8080`.
+- **Network:** the board is also served directly on port **8765** for TVs and dashboards. If you see
+  *"port … is already in use"* when starting, another add-on has that port. Change the number on the
+  **Network** section of the Configuration tab, e.g. to 8766, **Save**, then **Start**. Use your number
+  wherever this guide says `8765`. Add-on versions before 0.2.2 defaulted to 8080, which often clashes.
 
 ---
 
 ## 3. Choose the airport and options
 
 1. Click **Airport Info** in the sidebar. The board opens, defaulting to **EGSU Duxford**.
-2. Click the faint **⚙** at the bottom right, or open `http://<HA-IP>:8080/settings.html`.
+2. Click the faint **⚙** at the bottom right, or open `http://<HA-IP>:8765/settings.html`.
 3. Choose these settings:
    - **Airport:** type a code or a name, e.g. `EGSU`, `GLO` or `Gloucester`, and pick from the list. Any UK airport works.
    - **Screen:** *Information board*, *Weather station*, or *Rotate* (alternates every N seconds).
@@ -86,9 +90,9 @@ On the TV's browser (smart TV, Fire TV Silk, Chromecast with a browser, or a Ras
 
 | Screen | Address |
 |---|---|
-| Information board | `http://<HA-IP>:8080/?kiosk` |
-| Weather station | `http://<HA-IP>:8080/weather?kiosk` |
-| Alternate both | `http://<HA-IP>:8080/?view=rotate&rotate_seconds=30&kiosk` |
+| Information board | `http://<HA-IP>:8765/?kiosk` |
+| Weather station | `http://<HA-IP>:8765/weather?kiosk` |
+| Alternate both | `http://<HA-IP>:8765/?view=rotate&rotate_seconds=30&kiosk` |
 
 Set the browser to full screen. `kiosk` hides the settings button.
 
@@ -100,7 +104,7 @@ Set the browser to full screen. `kiosk` hides the settings button.
 ### Option 3: a full-screen Home Assistant dashboard (the card)
 Use this if the TV already shows a Home Assistant dashboard, e.g. a wall tablet running the HA app or a kiosk browser.
 1. **Add the card resource.** Settings → Dashboards → **⋮** → **Resources** → **Add resource**:
-   - URL: `http://<HA-IP>:8080/card/airport-info-card.js`
+   - URL: `http://<HA-IP>:8765/card/airport-info-card.js`
    - Type: **JavaScript module**
 
    If you don't see *Resources*, turn on **Advanced mode** in your user profile.
@@ -116,7 +120,7 @@ Card options, for reference:
 
 ```yaml
 type: custom:airport-info-card
-server: http://<HA-IP>:8080   # where the add-on is reachable
+server: http://<HA-IP>:8765   # where the add-on is reachable
 view: board                   # board | weather | rotate
 rotate_seconds: 30            # when view: rotate
 full_screen: true             # fills the screen like the original kiosk
@@ -138,7 +142,7 @@ full_screen: true             # fills the screen like the original kiosk
 For example, you could announce an arrival within 30 minutes.
 
 1. Copy the file to `/config/packages/airport_info_package.yaml`, using Samba (`\\<HA-IP>\config`) or the File editor add-on.
-2. Change `homeassistant.local:8080` in it to `<HA-IP>:8080`.
+2. Change `homeassistant.local:8765` in it to `<HA-IP>:8765`.
 3. In `configuration.yaml`, add the following, unless it is already there:
    ```yaml
    homeassistant:
@@ -164,11 +168,11 @@ For example, you could announce an arrival within 30 minutes.
 
 | What you see | Fix |
 |---|---|
-| Card says **CANNOT REACH AIRPORT INFO SERVER** | Check the add-on is running. Open `http://<HA-IP>:8080/health` in a browser; it should say `"ok": true`. Check the `server:` URL in the card. |
+| Card says **CANNOT REACH AIRPORT INFO SERVER** | Check the add-on is running. Open `http://<HA-IP>:8765/health` in a browser; it should say `"ok": true`. Check the `server:` URL in the card. |
 | Dashboard card blank, or the browser console mentions *mixed content* | You opened HA over https. Use `http://<HA-IP>:8123` on that screen, or use Option 2 (sidebar). |
 | *Airport Info* missing from the store (Method B) | `config.yaml` must be directly inside `addons/airport_info/`. Run **Check for updates**, then refresh. |
 | Add-on fails to build | Look at **Settings → System → Logs → Supervisor**. The build needs internet access to download Python packages. |
-| Port 8080 already in use | Change the host port on the add-on's **Network** section and use the new number everywhere. |
+| **Cannot start app … port … is already in use** | Another add-on uses that port. Configuration tab → **Network** → pick another number, e.g. 8766 → Save → Start. Then use that number in TV URLs, the card `server:` and the sensor package. The sidebar panel is unaffected. |
 | "No flight plans scheduled" | This is normal at small airfields. FlightAware only lists flights with filed plans or tracking. |
 | "FLIGHT DATA / NOTAM FEED TEMPORARILY UNAVAILABLE" | An upstream site is down or slow. It retries automatically, and the footer shows the last update time. |
 | Orange **SCREEN PINNED TO …** badge | That screen has `?airport=` in its address or `airport:` in its card. Remove it to follow the settings page. |
@@ -183,10 +187,10 @@ Run the server with Docker on the same machine or any always-on computer:
 
 ```bash
 git clone <repository URL> airport-info && cd airport-info
-docker compose up -d --build      # serves on port 8080; settings saved in ./data
+docker compose up -d --build      # serves on port 8080 (plain Docker); settings saved in ./data
 ```
 
-Then follow steps 3–5, using that machine's IP in place of `<HA-IP>`. The sidebar panel (Option 2) is
+Then follow steps 3–5, using that machine's IP in place of `<HA-IP>` and port **8080** in place of `8765`. The sidebar panel (Option 2) is
 add-on only. Instead, add a **Webpage** dashboard card pointing at `http://<server-ip>:8080/?kiosk`.
 
 ## Appendix B: what's tested
