@@ -1,216 +1,198 @@
-# Installing Airport Info on Home Assistant
+# Airport Info on Home Assistant
 
-This guide takes you from nothing to the airport screens running on your TVs, using Home Assistant.
-Allow about 20–30 minutes, most of it waiting for the add-on to build.
+Put live airport screens on your TVs: arrivals, departures, NOTAMs, local airspace, radio frequencies and a
+weather station with the airfield's runways. It works for **any UK airport** and defaults to **EGSU Duxford**.
 
-**What you end up with**
-- **Information board:** arrivals, departures, NOTAMs, latest activity, local airspace and the radio strip.
-- **Weather station page:** wind rose with the runways, QNH/QFE, RVR, crosswinds, and the radio box.
-- **A settings page:** every screen follows the airport chosen there, switching within about 5 seconds of a save.
-- **Ways to show it:** an *Airport Info* entry in the Home Assistant sidebar, plus optional full-screen dashboards and sensors.
+![Information board](screenshots/tv_egbb.jpg)
+
+**You'll need:** a 64-bit Home Assistant with the **Add-ons** menu (Home Assistant OS or Supervised) and about
+10 minutes. No Add-ons menu? See *Use Docker instead* at the end.
 
 > Information only. Not for operational use. Always get an official briefing before flight.
 
----
+## Quick start
 
-## 0. Before you start
-
-| You need | Notes |
-|---|---|
-| **Home Assistant OS** or **Supervised** | These have the *Add-ons* menu: Settings → Add-ons. On **HA Container/Core** (no add-ons), use the [Docker method](#appendix-a--home-assistant-container--core-no-add-ons). |
-| Internet access on the HA machine | The server fetches FlightAware, NATS NOTAMs, METARs and airspace data. |
-| A 64-bit Home Assistant machine | Raspberry Pi 4/5, Home Assistant Green/Yellow, or any PC/NUC (amd64/aarch64). |
-| A browser on any computer | Used to copy files to Home Assistant and to set things up. |
-
-Find your Home Assistant address, e.g. `http://homeassistant.local:8123` or `http://192.168.1.50:8123`.
-This guide writes **`<HA-IP>`** for the IP part, e.g. `192.168.1.50`.
+| | Step | Time |
+|---|---|---|
+| 1 | [Install the add-on](#1-install-the-add-on) | 3–15 min (mostly waiting) |
+| 2 | [Start it](#2-start-it) | 1 min |
+| 3 | [Choose your airport](#3-choose-your-airport) | 1 min |
+| 4 | [Put it on your screens](#4-put-it-on-your-screens) | 2 min per screen |
 
 ---
 
 ## 1. Install the add-on
 
-### Method A: add-on repository (recommended; the repository is public)
-1. Go to **Settings → Add-ons → Add-on Store**, then **⋮** (top right) → **Repositories**.
-2. Paste `https://github.com/madmonkeyfpv/Airport-Info` and click **Add**, then **Close**.
-3. Refresh the page and scroll to **Airport Info add-ons**. Open **Airport Info** and click **Install**.
+1. In Home Assistant go to **Settings → Add-ons → Add-on Store**.
+2. Tap **⋮** (top right) → **Repositories**, paste the address below, then tap **Add**:
+   ```
+   https://github.com/madmonkeyfpv/Airport-Info
+   ```
+3. Close the box and refresh the page. Find **Airport Info**, open it and tap **Install**.
 
-### Method B: local add-on (only if the repository is ever made private again)
-1. **Install a way to copy files into Home Assistant.** The easiest is the **Samba share** add-on:
-   - Settings → Add-ons → Add-on Store → search **Samba share** → Install.
-   - On its **Configuration** tab, set a username and password, then **Save**.
-   - Go to **Info** and click **Start**.
-2. **Download the project.** On github.com, signed in, open the repository and click **Code → Download ZIP**. Unzip it.
-3. **Copy it into the `addons` share.**
-   - Windows: open `\\<HA-IP>\addons` in File Explorer.
-   - Mac: Finder → Go → Connect to Server → `smb://<HA-IP>/addons`.
-   - Log in with the Samba username and password.
-   - Create a folder called **`airport_info`** and copy the **contents** of the unzipped folder into it.
-   - `addons/airport_info/config.yaml` must exist, sitting directly inside `airport_info`.
-4. **Find it in the store.** Settings → Add-ons → Add-on Store → **⋮** → **Check for updates**. Refresh the page. A **Local add-ons** section appears with **Airport Info**.
-5. **Install.** Open **Airport Info** and click **Install**. Home Assistant builds it on your machine. This takes about 2–5 minutes on a PC or NUC and up to about 15 minutes on a Raspberry Pi.
+Home Assistant builds the add-on on your machine. Expect about 2 minutes on a PC, or up to 15 on a Raspberry Pi.
 
----
+<details>
+<summary>Can't add the repository? Install it as a local add-on instead</summary>
+
+1. Install the **Samba share** add-on, set a username and password on its Configuration tab, and start it.
+2. On GitHub, open the repository and use **Code → Download ZIP**, then unzip it.
+3. Open the `addons` share: `\\<HA-IP>\addons` on Windows, or `smb://<HA-IP>/addons` on a Mac.
+4. Create a folder `airport_info` and copy the **contents** of the unzipped folder into it, so that
+   `addons/airport_info/config.yaml` exists.
+5. Back in the Add-on Store, tap **⋮** → **Check for updates** and refresh. **Airport Info** appears under
+   **Local add-ons**. Tap **Install**.
+</details>
 
 ## 2. Start it
 
 On the add-on's **Info** tab:
+
 1. Turn on **Start on boot**, **Watchdog** and **Show in sidebar**.
-2. Click **Start**.
-3. Open the **Log** tab. After a few seconds you should see `[airport-info] starting: …` followed by `Running on http://0.0.0.0:8080`. That is the port
-   *inside* the add-on; from your network it's reachable on port **8765**.
+2. Tap **Start**.
+3. **Airport Info** now appears in the sidebar. Tap it and the board opens.
 
-Optional, on the **Configuration** tab:
-- **admin_token:** set a password here to stop anyone who can see the screens from changing the settings. Leave it blank on a trusted home network.
-- **Network:** the board is also served directly on port **8765** for TVs and dashboards. If you see
-  *"port … is already in use"* when starting, another add-on has that port. Change the number on the
-  **Network** section of the Configuration tab, e.g. to 8766, **Save**, then **Start**. Use your number
-  wherever this guide says `8765`. Add-on versions before 0.2.2 defaulted to 8080, which often clashes.
+✅ The add-on's **Log** tab should show `[airport-info] starting` and `dashboard card installed`.
 
----
+<details>
+<summary>Optional: stop other people changing the settings, or change the port</summary>
 
-## 3. Choose the airport and options
+- **Lock the settings:** on the **Configuration** tab, set an `admin_token`, which works like a password. The
+  settings page then asks for it before saving.
+- **Port:** TVs reach the add-on on port **8765**. If starting fails with *"port … is already in use"*, change the
+  number under **Configuration → Network** (e.g. to `8766`), then save and start. Use your number wherever this guide
+  says `8765`.
+</details>
 
-1. Click **Airport Info** in the sidebar. The board opens, defaulting to **EGSU Duxford**.
-2. Click the faint **⚙** at the bottom right, or open `http://<HA-IP>:8765/settings.html`.
-3. Choose these settings:
-   - **Airport:** type a code or a name, e.g. `EGSU`, `GLO` or `Gloucester`, and pick from the list. Any UK airport works.
-   - **Screen:** *Information board*, *Weather station*, or *Rotate* (alternates every N seconds).
-   - **Opening hours:** leave blank to use the built-in published hours (Duxford is included). Or enter hours like `0900-1700`, or seasonal hours like `15MAR-15OCT 1000-1800; 16OCT-14MAR 1000-1600`.
-   - **Units, clock, theme and airspace radius:** as you prefer.
-4. Click **SAVE SETTINGS**. Every screen switches within about 5 seconds.
+## 3. Choose your airport
 
----
+1. In the sidebar board, tap the faint **⚙** (bottom right).
+2. Type an airport code or name, e.g. `EGSU`, `GLO` or `Gloucester`, and pick it from the list.
+3. Choose the **Screen**: *Information board*, *Weather station*, or *Rotate* (alternates the two).
+4. Tap **SAVE SETTINGS**. Every screen switches within about 5 seconds.
 
-## 4. Put it on the TVs
+Units, 12/24-hour clock, theme, airspace radius and opening hours are on the same page. Duxford's opening hours
+are built in.
 
-> **Easiest:** open the settings page and scroll to **SCREEN ADDRESSES**. It lists every address below, already
-> filled in with your Home Assistant's real IP and port, each with **COPY** and **OPEN** buttons, plus the dashboard
-> card resource and a ready-to-paste card. Copy the one you want and paste it into the TV's browser.
+## 4. Put it on your screens
 
-Pick whichever suits each screen. You can mix them, e.g. one TV on the board and another on the weather page.
+Scroll down the settings page to **Screen addresses**. Every address you need is there, already filled in with
+your Home Assistant's real IP, each with a **COPY** button.
 
-### Option 1: a TV browser straight to the add-on (simplest)
-On the TV's browser (smart TV, Fire TV Silk, Chromecast with a browser, or a Raspberry Pi in kiosk mode), open:
+![Screen addresses](screenshots/settings_screen_addresses.jpg)
 
-| Screen | Address |
-|---|---|
-| Information board | `http://<HA-IP>:8765/?kiosk` |
-| Weather station | `http://<HA-IP>:8765/weather?kiosk` |
-| Alternate both | `http://<HA-IP>:8765/?view=rotate&rotate_seconds=30&kiosk` |
+**Which should I use?**
 
-Set the browser to full screen. `kiosk` hides the settings button.
+| Your screen | Use | How |
+|---|---|---|
+| A TV or tablet with a web browser | **TV address** (simplest) | Copy *Information board*, *Weather station* or *Rotate* from Screen addresses, open it in the TV's browser, and set full screen |
+| Any device signed in to Home Assistant, at home or away | **Sidebar** | Tap **Airport Info** in the sidebar |
+| A wall tablet already showing a Home Assistant dashboard | **Dashboard card** | Follow the steps below |
 
-### Option 2: the Home Assistant sidebar panel (works anywhere, including remote https)
-- Click **Airport Info** in the sidebar.
-- This goes through Home Assistant's own secure connection, so it also works away from home and with Nabu Casa.
-- Use the ⚙ button for settings, and add `?view=weather` to the address for the weather page.
+### Dashboard card
 
-### Option 3: a full-screen Home Assistant dashboard (the card)
-Use this if the TV already shows a Home Assistant dashboard, e.g. a wall tablet running the HA app or a kiosk browser.
+1. **Add the resource.** Settings → Dashboards → **⋮** → **Resources** → **Add resource**:
+   - **URL:** copy *HA card resource — RECOMMENDED* from Screen addresses. It looks like
+     `/local/airport-info/card/airport-info-card.js?v=0.2.6`.
+   - **Type:** JavaScript module.
 
-The add-on (0.2.6+) installs the card into Home Assistant's own `www` folder every time it starts, so Home
-Assistant serves it itself. It works over http, https, Nabu Casa and the iPhone/Android app.
-
-1. **Add the card resource.** Settings → Dashboards → **⋮** → **Resources** → **Add resource**:
-   - URL: `/local/airport-info/card/airport-info-card.js?v=0.2.6`. Copy the exact line from the settings page's
-     **Screen addresses → HA card resource — RECOMMENDED**.
-   - Type: **JavaScript module**
-
-   If you don't see *Resources*, turn on **Advanced mode** in your user profile. Remove any older Airport Info
-   resource that points at `http://…:8765/…`.
-2. **Add the card.** Edit a dashboard → **Add card** → **Manual**, and paste:
+   No *Resources* option? Turn on **Advanced mode** in your user profile first.
+2. **Add the card.** Edit your dashboard → **Add card** → **Manual**, then paste:
    ```yaml
    type: custom:airport-info-card
-   view: board              # board | weather | rotate
-   rotate_seconds: 30       # when view: rotate
-   full_screen: true        # fills the screen like the original kiosk
+   view: board          # board | weather | rotate
+   full_screen: true
    ```
-   For a whole dashboard with a board view and an airfield-weather view, paste
-   [`homeassistant/airport_info_dashboard.yaml`](../homeassistant/airport_info_dashboard.yaml) into the
-   **Raw configuration editor**.
-3. **After each add-on update**, change the `?v=` number in the resource URL to the new version and refresh.
+3. Refresh the page. In the phone app: Settings → Companion app → Debugging → **Reset frontend cache**.
 
-> **Admin users only.** With no `server:` set, the card reads its data through the add-on's secure sidebar route.
-> Home Assistant only grants that to **administrator** accounts, the same as add-on panels. For a non-admin
-> account, open Home Assistant over **http://<HA-IP>:8123** and use the *alternative* resource and card from
-> Screen addresses (`http://<HA-IP>:8765/card/…` plus `server: http://<HA-IP>:8765`).
+> The card needs you to be signed in as a Home Assistant **administrator**. It works over http, https, Nabu Casa
+> and the mobile apps.
+
+Want a ready-made dashboard with a board view and a weather view? Paste
+[`airport_info_dashboard.yaml`](../homeassistant/airport_info_dashboard.yaml) into **Raw configuration editor**.
+
+<p>
+  <img src="screenshots/weather_egsu.jpg" alt="Weather station" width="49%">
+  <img src="screenshots/ha_card_midnight.jpg" alt="Dashboard card" width="49%">
+</p>
 
 ---
 
-## 5. Optional: sensors for automations
+## Updating
 
-[`homeassistant/airport_info_package.yaml`](../homeassistant/airport_info_package.yaml) creates sensors you can use in automations:
+When a new version is out, the add-on shows an **Update** button. Tap it. To check sooner, use Add-on Store → **⋮** →
+**Check for updates**. Your settings are kept.
+
+If you use the dashboard card, after updating:
+1. Change the `?v=` number at the end of the card resource to the new version. Screen addresses always shows the
+   current line.
+2. Refresh the page.
+
+## Troubleshooting
+
+| You see | Do this |
+|---|---|
+| **"Custom element doesn't exist: airport-info-card"** | 1. Update the add-on to 0.2.6 or later and restart it. 2. Check the resource matches Screen addresses and is a **JavaScript module**. 3. Refresh, or reset the frontend cache in the app. |
+| **Card: "…needs an administrator account"** | Sign in as an admin on that screen, or see *Non-admin screens* below. |
+| **"Cannot start app … port is already in use"** | Change the port under Configuration → Network (see step 2). |
+| **"No flight plans scheduled"** | Normal at small airfields. FlightAware only lists flights with a filed plan or tracking. |
+| **Orange "SCREEN PINNED TO …" badge** | That screen's address contains `?airport=` (or its card has `airport:`). Remove it to follow the settings page. |
+
+<details>
+<summary>More problems and fixes</summary>
+
+| You see | Do this |
+|---|---|
+| Add-on keeps restarting with `No module named 'airport_info'` | You're on 0.2.0–0.2.2. Update to the latest version. |
+| Add-on fails to install | Check **Settings → System → Logs → Supervisor**. The build needs internet access. |
+| *Airport Info* missing from the store (local install) | `config.yaml` must sit directly inside `addons/airport_info/`. Check for updates, then refresh. |
+| "FLIGHT DATA / NOTAM FEED TEMPORARILY UNAVAILABLE" | A data source is down or slow. It retries automatically, and the footer shows the last update time. |
+| Radio strip says **NO NOTAM CHANGES** rather than open/closed | No opening hours are known for that airfield. Add them on the settings page. |
+| Settings won't save: "Admin token required" | Type the `admin_token` from the add-on's Configuration tab into the settings page's Admin box. |
+| A TV address won't load | Open `http://<HA-IP>:8765/health`; it should say `"ok": true`. Check the add-on is running and the port matches. |
+</details>
+
+<details>
+<summary>Non-admin screens (dashboard card without an admin account)</summary>
+
+Open Home Assistant on that screen over plain **http** (`http://<HA-IP>:8123`, not https or Nabu Casa). In Screen
+addresses, use the two items marked **alternative**:
+- the `http://<HA-IP>:8765/card/…` resource;
+- the card snippet with a `server:` line.
+</details>
+
+<details>
+<summary>Sensors for automations (optional)</summary>
+
+[`airport_info_package.yaml`](../homeassistant/airport_info_package.yaml) adds these sensors:
 - temperature;
-- the number of inbound aircraft;
-- the next arrival time;
-- the NOTAM count;
+- inbound aircraft count and next arrival time;
+- NOTAM count;
 - airspace state;
-- the ATIS letter.
+- ATIS letter.
 
-For example, you could announce an arrival within 30 minutes.
+Use them to announce an arrival within 30 minutes, for example.
 
-1. Copy the file to `/config/packages/airport_info_package.yaml`, using Samba (`\\<HA-IP>\config`) or the File editor add-on.
-2. Change `homeassistant.local:8765` in it to `<HA-IP>:8765`.
-3. In `configuration.yaml`, add the following, unless it is already there:
+1. Copy the file to `/config/packages/`, using the Samba share or the File editor add-on.
+2. Change `homeassistant.local:8765` inside it to `<HA-IP>:8765`.
+3. Make sure `configuration.yaml` contains:
    ```yaml
    homeassistant:
      packages: !include_dir_named packages
    ```
 4. Developer tools → **Check configuration** → **Restart**.
+</details>
 
----
+<details>
+<summary>No Add-ons menu? Use Docker instead</summary>
 
-## 6. Updating
-
-1. **Method A:** when a new version is published, the add-on shows **Update**, usually within a day; for sooner, use Add-on Store → ⋮ → **Check for updates**. Click it.
-2. **Method B:**
-   - Download the new ZIP and replace the files in `addons/airport_info`.
-   - Settings → Add-ons → Add-on Store → ⋮ → **Check for updates**.
-   - Open Airport Info and click **Update**, or **Rebuild** if the version number didn't change.
-   - Your settings are kept, because they are stored in the add-on's data.
-3. **If you use the dashboard card:** hard-refresh the TV browser afterwards so it loads the new card.
-
----
-
-## 7. Troubleshooting
-
-| What you see | Fix |
-|---|---|
-| Card says **CANNOT REACH AIRPORT INFO SERVER** | Check the add-on is running. Open `http://<HA-IP>:8765/health` in a browser; it should say `"ok": true`. Check the `server:` URL in the card. |
-| **"Custom element doesn't exist: airport-info-card"** | The card's code didn't load. Check these in order: (1) add-on **0.2.6 or later**. (2) The resource is `/local/airport-info/card/airport-info-card.js?v=…`, type **JavaScript module** (copy it from Screen addresses). (3) Restart the add-on once, so it installs the card. The add-on log should say `dashboard card installed`. (4) Refresh: Ctrl+Shift+R, or in the HA app go to Settings → Companion app → Debugging → Reset frontend cache. |
-| Card says **CANNOT REACH AIRPORT INFO … administrator account** | You're logged into HA as a non-admin user. Use an admin account on that screen, or use the *alternative* http resource and `server:` (see Option 3). |
-| Dashboard card blank, or the browser console mentions *mixed content* | You opened HA over https. Use `http://<HA-IP>:8123` on that screen, or use Option 2 (sidebar). |
-| *Airport Info* missing from the store (Method B) | `config.yaml` must be directly inside `addons/airport_info/`. Run **Check for updates**, then refresh. |
-| Log repeats `No module named 'airport_info'` and the add-on keeps restarting | You have version 0.2.0–0.2.2. Update to **0.2.3** or later: Add-on Store → ⋮ → Check for updates → Update. |
-| Add-on fails to build | Look at **Settings → System → Logs → Supervisor**. The build needs internet access to download Python packages. |
-| **Cannot start app … port … is already in use** | Another add-on uses that port. Configuration tab → **Network** → pick another number, e.g. 8766 → Save → Start. Then use that number in TV URLs, the card `server:` and the sensor package. The sidebar panel is unaffected. |
-| "No flight plans scheduled" | This is normal at small airfields. FlightAware only lists flights with filed plans or tracking. |
-| "FLIGHT DATA / NOTAM FEED TEMPORARILY UNAVAILABLE" | An upstream site is down or slow. It retries automatically, and the footer shows the last update time. |
-| Orange **SCREEN PINNED TO …** badge | That screen has `?airport=` in its address or `airport:` in its card. Remove it to follow the settings page. |
-| Radio shows **NO NOTAM CHANGES** instead of open/closed | No opening hours are known for that airport. Add them on the settings page. |
-| Settings won't save: "Admin token required" | Enter the token set on the add-on's Configuration tab in the settings page's Admin box. |
-
----
-
-## Appendix A: Home Assistant Container / Core (no add-ons)
-
-Run the server with Docker on the same machine or any always-on computer:
+On Home Assistant Container/Core, run the server on any always-on computer:
 
 ```bash
-git clone <repository URL> airport-info && cd airport-info
-docker compose up -d --build      # serves on port 8080 (plain Docker); settings saved in ./data
+git clone https://github.com/madmonkeyfpv/Airport-Info airport-info && cd airport-info
+docker compose up -d --build        # serves on port 8080; settings saved in ./data
 ```
 
-Then follow steps 3–5, using that machine's IP in place of `<HA-IP>` and port **8080** in place of `8765`. The sidebar panel (Option 2) is
-add-on only. Instead, add a **Webpage** dashboard card pointing at `http://<server-ip>:8080/?kiosk`.
-
-## Appendix B: what's tested
-
-- **Automated tests:** 15 offline tests run on every change.
-- **Browser checks** with live data:
-  - board;
-  - weather page;
-  - HA card;
-  - settings sync;
-  - the board under a simulated Home Assistant ingress path.
-- **Not yet tried on a real Home Assistant box:** building the add-on image itself. Report any build error from the Supervisor log and it can be fixed quickly.
+Then open `http://<computer-ip>:8080/settings.html` and follow steps 3–4, using port **8080**. There's no sidebar
+entry without the add-on. For a dashboard, use a **Webpage** card pointing at `http://<computer-ip>:8080/?kiosk`.
+</details>
