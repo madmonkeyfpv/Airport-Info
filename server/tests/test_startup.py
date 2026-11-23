@@ -5,9 +5,11 @@ ENV values (PYTHONPATH, WEB_DIR, DATA_DIR) never reach the app. run.sh must set 
 Add-on 0.2.0-0.2.2 failed on a real HA box with "No module named 'airport_info'" because of this.
 """
 import json
+import os
 import pathlib
 import socket
 import subprocess
+import sys
 import time
 import urllib.request
 
@@ -23,7 +25,11 @@ def _free_port():
 def test_run_sh_starts_with_empty_environment(tmp_path):
     (tmp_path / "options.json").write_text(json.dumps({"admin_token": "secret"}))
     port = _free_port()
-    env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "APP_DIR": str(ROOT), "DATA_DIR": str(tmp_path), "PORT": str(port)}
+    # Minimal PATH, but with the test interpreter's directory first: on CI the Python that has the
+    # requirements installed lives outside /usr/bin (e.g. /opt/hostedtoolcache/...). In the add-on image
+    # python3 is /usr/local/bin/python3 with requirements installed, which this PATH also covers.
+    path = os.pathsep.join([os.path.dirname(sys.executable), "/usr/local/bin", "/usr/bin", "/bin"])
+    env = {"PATH": path, "APP_DIR": str(ROOT), "DATA_DIR": str(tmp_path), "PORT": str(port)}
     proc = subprocess.Popen(["sh", str(ROOT / "run.sh")], cwd="/", env=env,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     try:
