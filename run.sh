@@ -13,6 +13,12 @@ export PORT="${PORT:-8080}"
 export HOST="${HOST:-0.0.0.0}"
 mkdir -p "$DATA_DIR"
 
+# Supervisor API token (HA add-on only): also wiped by s6, but s6 keeps a copy on disk.
+if [ -z "$SUPERVISOR_TOKEN" ] && [ -f /run/s6/container_environment/SUPERVISOR_TOKEN ]; then
+  SUPERVISOR_TOKEN=$(cat /run/s6/container_environment/SUPERVISOR_TOKEN)
+  export SUPERVISOR_TOKEN
+fi
+
 # Inside a Home Assistant add-on, /data/options.json holds the add-on options (admin token).
 if [ -f "$DATA_DIR/options.json" ]; then
   ADMIN_TOKEN=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('admin_token') or '')" "$DATA_DIR/options.json")

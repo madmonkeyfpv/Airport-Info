@@ -171,3 +171,20 @@ def test_settings_version_changes_on_save(tmp_path):
     s.update({"airport": "glo"})
     assert s.version != v0 and s.values["airport"] == "GLO"
     assert Settings(tmp_path / "settings.json").version == s.version  # stable across restarts
+
+
+def test_screen_links_from_supervisor():
+    from airport_info.links import bases_from_supervisor
+    self_info = {"network": {"8080/tcp": 8765}, "ip_address": "172.30.33.7"}
+    network = {"interfaces": [
+        {"interface": "end0", "enabled": True, "connected": True, "primary": True,
+         "ipv4": {"address": ["192.168.1.50/24"]}},
+        {"interface": "hassio", "enabled": True, "connected": True, "primary": False,
+         "ipv4": {"address": ["172.30.32.1/23"]}},
+        {"interface": "wlan0", "enabled": False, "ipv4": {"address": ["10.0.0.9/24"]}},
+    ]}
+    out = bases_from_supervisor(self_info, network, {"hostname": "homeassistant"})
+    assert [b["base"] for b in out["bases"]] == ["http://192.168.1.50:8765", "http://homeassistant.local:8765"]
+    assert out["port"] == 8765 and not out["direct_port_disabled"]
+    off = bases_from_supervisor({"network": {"8080/tcp": None}}, network, None)
+    assert off["direct_port_disabled"] and off["bases"] == []

@@ -7,6 +7,7 @@ weather station (wind rose + runways), radio frequencies & ATIS.
 - TVs / kiosk browsers: `http://<HA-IP>:8765/?kiosk` (board) or `http://<HA-IP>:8765/weather?kiosk`.
 - Settings (airport, units, screen, hours): ⚙ button or `http://<HA-IP>:8765/settings.html`.
   All screens follow the settings page within ~5 seconds.
+- The settings page's **Screen addresses** section lists every TV/kiosk URL with your real IP and port (copy buttons).
 
 **Option `admin_token`**: if set, the settings page asks for it before saving.
 

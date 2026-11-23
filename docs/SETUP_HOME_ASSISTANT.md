@@ -83,6 +83,10 @@ Optional, on the **Configuration** tab:
 
 ## 4. Put it on the TVs
 
+> **Easiest:** open the settings page and scroll to **SCREEN ADDRESSES**. It lists every address below, already
+> filled in with your Home Assistant's real IP and port, each with **COPY** and **OPEN** buttons, plus the dashboard
+> card resource and a ready-to-paste card. Copy the one you want and paste it into the TV's browser.
+
 Pick whichever suits each screen. You can mix them, e.g. one TV on the board and another on the weather page.
 
 ### Option 1: a TV browser straight to the add-on (simplest)
