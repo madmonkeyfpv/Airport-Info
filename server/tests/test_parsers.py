@@ -188,3 +188,16 @@ def test_screen_links_from_supervisor():
     assert out["port"] == 8765 and not out["direct_port_disabled"]
     off = bases_from_supervisor({"network": {"8080/tcp": None}}, network, None)
     assert off["direct_port_disabled"] and off["bases"] == []
+
+
+def test_install_card_files_into_ha_www(tmp_path):
+    import json as _json
+    from airport_info.ha_install import install_card_files
+    web = pathlib.Path(__file__).resolve().parents[2] / "web"
+    assert install_card_files(tmp_path / "missing", web, "9.9.9") is None   # not an HA add-on: no-op
+    out = install_card_files(tmp_path, web, "9.9.9", "/api/hassio_ingress/abc/", 8765)
+    card = (out / "card" / "airport-info-card.js").read_text()
+    assert "from '../board.js?v=9.9.9'" in card and "from '../weather.js?v=9.9.9'" in card
+    assert "from './board.js?v=9.9.9'" in (out / "weather.js").read_text()
+    meta = _json.loads((out / "addon.json").read_text())
+    assert meta == {"version": "9.9.9", "ingress_url": "/api/hassio_ingress/abc/", "port": 8765}

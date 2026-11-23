@@ -33,7 +33,8 @@ from . import __version__, airports
 from .airspace import AirspaceDB, build_panel
 from .flightaware import fetch_board
 from .notams import PIB_URL, aerodrome_notams, nearby_airspace_notams, parse_pib
-from .links import screen_links
+from .ha_install import install_card_files
+from .links import _supervisor_token, _sv_get, screen_links
 from .radio import build_radio, fetch_datis
 from .settings import Settings
 from .weather import fetch_weather
@@ -148,6 +149,21 @@ class App:
             timeout=aiohttp.ClientTimeout(total=45),
             headers={"User-Agent": f"AirportInfoDisplay/{__version__} (+https://github.com/madmonkeyfpv/airport-info)"},
         )
+        await self._install_ha_card()
+
+    async def _install_ha_card(self):
+        """HA add-on: copy the dashboard card into Home Assistant's www folder (served as /local/airport-info/)."""
+        ha_dir = pathlib.Path(os.environ.get("HA_CONFIG_DIR", "/homeassistant"))
+        if not ha_dir.is_dir():
+            return
+        ingress_url, port = None, None
+        token = _supervisor_token()
+        if token:
+            info = await _sv_get(self.session, "/addons/self/info", token)
+            if info:
+                ingress_url = info.get("ingress_url") or info.get("ingress_entry")
+                port = (info.get("network") or {}).get("8080/tcp")
+        install_card_files(ha_dir, self.web_dir, __version__, ingress_url, port)
 
     async def on_cleanup(self, _app):
         if self.session:

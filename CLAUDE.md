@@ -30,6 +30,11 @@ server/airport_info/       Python aiohttp backend (API + static site)
   flightaware.py           FlightAware airport-board scraper (4 tables) -> flight dicts
   notams.py                NATS PIB parser, Q-code decoder, Item D schedule expansion, interpretation
   airspace.py              UK D/R/P areas (YAIXM dataset) + NOTAM activation -> panel cards/summary
+  ha_install.py            HA add-on: copies card + board.js + weather.js into /homeassistant/www/airport-info/ at startup
+                           (imports rewritten ?v=<version>) + addon.json {ingress_url, port}. Resource = /local/airport-info/
+                           card/airport-info-card.js?v=X → same origin as HA (no mixed content, no CORS). Card then fetches
+                           data via ingress_url using an ingress session from hass.callWS supervisor/api /ingress/session
+                           (ADMIN users only). config.yaml maps homeassistant_config:rw.
   links.py                 /api/links: LAN base URLs for TVs (Supervisor API: host IPs, hostname, mapped host port;
                            fallback: request Host + outbound IP) → settings page "Screen addresses" with copy buttons
   radio.py                 radio strip: frequency grouping, NOTAM/hours open-closed ESTIMATE, D-ATIS scrape (atis.guru)
@@ -196,10 +201,18 @@ layout with "ARRIVING WITHIN 30/60 MINUTES" banners.
   settings page card resource URL now ends `?v=<version>` for cache busting. Verified card renders cross-origin.
   Add-on 0.2.5. 18 tests.
 
+- **2026-11-23** — Owner (iPhone HA app) still saw "Custom element doesn't exist" (screenshot 01:12, one minute after
+  0.2.5 merged, so 0.2.5 not yet installed; also iOS app over https would block an http resource anyway). Made the card
+  robust: add-on installs it into HA www (served as /local/…, same origin), card resolves data base: `server:` if not
+  mixed-content, else addon.json ingress_url + ingress session via hass websocket (cookie ingress_session, validated every
+  60 s, renewed on 401), else fallback next-to-module. Tested end-to-end with a simulated HA origin (static /local + cookie-
+  checked ingress proxy) + mock Supervisor; old server: route re-tested. Settings page shows the /local resource as
+  RECOMMENDED. Guide Option 3 rewritten. Add-on 0.2.6. 19 tests.
+
 ## Next steps (suggested)
 1. Owner to confirm display resolution (assumed 1920×1080). NOTAM provider confirmed: NATS PIB.
    Duxford hours now built in (data/opening_hours.json, from IWM pilot info; "mid-month" read as the 15th —
    confirm exact season change dates with Duxford ATC 01223 833376 if precision matters).
-2. Owner: update add-on to 0.2.5, Start it, choose airport, set up TVs (guide steps 2–4). Check add-on Log tab if issues.
+2. Owner: update add-on to 0.2.6, restart it, set dashboard resource /local/airport-info/card/airport-info-card.js?v=0.2.6, choose airport, set up TVs (guide steps 2–4). Check add-on Log tab if issues.
 3. Public hosting parked (owner: "keep it as is for now"). Options documented above if revisited.
 4. Optional: AIP published-hours parsing for danger areas; more NOTAM title rules from real-world feedback.

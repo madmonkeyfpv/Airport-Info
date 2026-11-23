@@ -1,7 +1,8 @@
 # Airport Info dashboard view (replaces the original button-card kiosk in reference/).
 # Add as a new dashboard in raw-configuration mode, or paste the view into an existing one.
-# Requires the card resource:  Settings → Dashboards → ⋮ → Resources →
-#   URL: http://<airport-info-server>:8765/card/airport-info-card.js   Type: JavaScript module
+# Requires the card resource (Settings → Dashboards → ⋮ → Resources), type JavaScript module:
+#   /local/airport-info/card/airport-info-card.js?v=<add-on version>   (installed by the add-on, 0.2.6+)
+# Copy the exact line from the settings page → Screen addresses. No server: needed (admin users).
 title: Airport Information
 views:
   - title: Airport Information
@@ -10,7 +11,6 @@ views:
     type: panel
     cards:
       - type: custom:airport-info-card
-        server: http://homeassistant.local:8765   # Airport Info add-on / server URL
         # Airport comes from the settings page so every screen stays in sync. Do NOT set `airport:` here
         # unless this screen should be pinned to a different airport (a warning is then shown on it).
         full_screen: true                          # fixed full-viewport TV layout (hides HA chrome)
@@ -21,7 +21,6 @@ views:
     type: panel
     cards:
       - type: custom:airport-info-card
-        server: http://homeassistant.local:8765
         view: weather
         full_screen: true
         # settings:                                # optional per-screen overrides
