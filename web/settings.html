@@ -243,23 +243,28 @@ function renderLinks() {
     ['Information board', 'with ⚙ settings button', `${base}/`],
     ['Weather station', 'with ⚙ settings button', `${base}/?view=weather`],
     ['Settings page', 'this page', `${base}/settings.html`],
-    ['HA dashboard card resource', 'Settings → Dashboards → Resources (JavaScript module)', `${base}/card/airport-info-card.js?v=${linksVersion}`],
-    ['HA dashboard card', 'paste into a dashboard card (YAML)', `type: custom:airport-info-card\nserver: ${base}\nview: board        # board | weather | rotate\nrotate_seconds: ${rot}\nfull_screen: true`, true],
+    ...(linksHaAddon ? [
+      ['HA card resource — RECOMMENDED', 'Dashboards → Resources (JavaScript module). Served by HA: works over https, Nabu Casa & the app (admin user)', `/local/airport-info/card/airport-info-card.js?v=${linksVersion}`],
+      ['HA dashboard card (YAML)', 'use with the recommended resource — no server needed', `type: custom:airport-info-card\nview: board        # board | weather | rotate\nrotate_seconds: ${rot}\nfull_screen: true`, true],
+    ] : []),
+    ['HA card resource' + (linksHaAddon ? ' — alternative' : ''), linksHaAddon ? 'only for HA opened over http:// (e.g. non-admin users)' : 'Dashboards → Resources (JavaScript module)', `${base}/card/airport-info-card.js?v=${linksVersion}`],
+    ['HA dashboard card (YAML)' + (linksHaAddon ? ' — alternative' : ''), 'use with the resource above', `type: custom:airport-info-card\nserver: ${base}\nview: board        # board | weather | rotate\nrotate_seconds: ${rot}\nfull_screen: true`, true],
     ['Health check', 'should show "ok": true', `${base}/health`],
   ];
   linkRows.innerHTML = rows.map(([t, sub, url, multi], i) => `<div class="link-row">
       <div><b>${escH(t)}</b><small>${escH(sub)}</small></div>
       ${multi ? `<pre class="link-url">${escH(url)}</pre>` : `<div class="link-url">${escH(url)}</div>`}
-      <div class="link-actions"><button type="button" data-i="${i}">COPY</button>${multi ? '' : `<a href="${escH(url)}" target="_blank" rel="noopener">OPEN</a>`}</div>
+      <div class="link-actions"><button type="button" data-i="${i}">COPY</button>${multi || url.startsWith('/local/') ? '' : `<a href="${escH(url)}" target="_blank" rel="noopener">OPEN</a>`}</div>
     </div>`).join('');
   linkRows.querySelectorAll('button[data-i]').forEach(b => b.addEventListener('click', () => copyText(rows[+b.dataset.i][2], b)));
 }
 
-let linksVersion = '';
+let linksVersion = '', linksHaAddon = false;
 async function loadLinks() {
   let info = { bases: [] };
   try { info = await (await fetch(`${BASE}api/links`, { cache: 'no-store' })).json(); } catch {}
   linksVersion = info.version || '';
+  linksHaAddon = !!info.ha_addon;
   const viaIngress = location.pathname.includes('/hassio_ingress/');
   const bases = [...(info.bases || [])];
   if (!viaIngress && !bases.some(b => b.base === location.origin)) bases.push({ label: `This browser's address (${location.host})`, base: location.origin });

@@ -107,30 +107,33 @@ Set the browser to full screen. `kiosk` hides the settings button.
 
 ### Option 3: a full-screen Home Assistant dashboard (the card)
 Use this if the TV already shows a Home Assistant dashboard, e.g. a wall tablet running the HA app or a kiosk browser.
+
+The add-on (0.2.6+) installs the card into Home Assistant's own `www` folder every time it starts, so Home
+Assistant serves it itself. It works over http, https, Nabu Casa and the iPhone/Android app.
+
 1. **Add the card resource.** Settings → Dashboards → **⋮** → **Resources** → **Add resource**:
-   - URL: `http://<HA-IP>:8765/card/airport-info-card.js?v=0.2.5`. Copy the exact address from the settings
-     page's **Screen addresses**. Change the `?v=` number after each add-on update so browsers fetch the new card.
+   - URL: `/local/airport-info/card/airport-info-card.js?v=0.2.6`. Copy the exact line from the settings page's
+     **Screen addresses → HA card resource — RECOMMENDED**.
    - Type: **JavaScript module**
 
-   If you don't see *Resources*, turn on **Advanced mode** in your user profile.
-2. **Create the dashboard.** Settings → Dashboards → **Add dashboard** → *New dashboard from scratch*, named e.g. *Airport*.
-   - Open it, then **⋮** → **Edit dashboard** → **⋮** → **Raw configuration editor**.
-   - Paste the contents of [`homeassistant/airport_info_dashboard.yaml`](../homeassistant/airport_info_dashboard.yaml).
-   - Replace `homeassistant.local` with `<HA-IP>`, then **Save**.
-3. **Open it on the TV.** It has two views: *Airport Information* (the board) and *Airfield Weather*.
+   If you don't see *Resources*, turn on **Advanced mode** in your user profile. Remove any older Airport Info
+   resource that points at `http://…:8765/…`.
+2. **Add the card.** Edit a dashboard → **Add card** → **Manual**, and paste:
+   ```yaml
+   type: custom:airport-info-card
+   view: board              # board | weather | rotate
+   rotate_seconds: 30       # when view: rotate
+   full_screen: true        # fills the screen like the original kiosk
+   ```
+   For a whole dashboard with a board view and an airfield-weather view, paste
+   [`homeassistant/airport_info_dashboard.yaml`](../homeassistant/airport_info_dashboard.yaml) into the
+   **Raw configuration editor**.
+3. **After each add-on update**, change the `?v=` number in the resource URL to the new version and refresh.
 
-> **Important: http vs https.** Browsers block an `http://` card on an `https://` page. Open this dashboard on the TV using the **local http address**, `http://<HA-IP>:8123/...`, not your Nabu Casa or https address. For remote viewing, use Option 2.
-
-Card options, for reference:
-
-```yaml
-type: custom:airport-info-card
-server: http://<HA-IP>:8765   # where the add-on is reachable
-view: board                   # board | weather | rotate
-rotate_seconds: 30            # when view: rotate
-full_screen: true             # fills the screen like the original kiosk
-# airport: EGLL               # ONLY to pin this screen to a different airport (shows an orange warning)
-```
+> **Admin users only.** With no `server:` set, the card reads its data through the add-on's secure sidebar route.
+> Home Assistant only grants that to **administrator** accounts, the same as add-on panels. For a non-admin
+> account, open Home Assistant over **http://<HA-IP>:8123** and use the *alternative* resource and card from
+> Screen addresses (`http://<HA-IP>:8765/card/…` plus `server: http://<HA-IP>:8765`).
 
 ---
 
@@ -174,7 +177,8 @@ For example, you could announce an arrival within 30 minutes.
 | What you see | Fix |
 |---|---|
 | Card says **CANNOT REACH AIRPORT INFO SERVER** | Check the add-on is running. Open `http://<HA-IP>:8765/health` in a browser; it should say `"ok": true`. Check the `server:` URL in the card. |
-| **"Custom element doesn't exist: airport-info-card"** | The card's code didn't load. Check these in order: (1) add-on **0.2.5 or later** (0.2.4 and earlier blocked the card's helper files cross-site). (2) The resource exists, is type **JavaScript module**, and uses your port (copy it from **Screen addresses**). (3) You opened HA over **http://**, not https (see next row). (4) Hard-refresh the browser (Ctrl+Shift+R), or in the HA app: Settings → Companion app → Debugging → Reset frontend cache. Bump `?v=` on the resource URL if it still loads an old copy. |
+| **"Custom element doesn't exist: airport-info-card"** | The card's code didn't load. Check these in order: (1) add-on **0.2.6 or later**. (2) The resource is `/local/airport-info/card/airport-info-card.js?v=…`, type **JavaScript module** (copy it from Screen addresses). (3) Restart the add-on once, so it installs the card. The add-on log should say `dashboard card installed`. (4) Refresh: Ctrl+Shift+R, or in the HA app go to Settings → Companion app → Debugging → Reset frontend cache. |
+| Card says **CANNOT REACH AIRPORT INFO … administrator account** | You're logged into HA as a non-admin user. Use an admin account on that screen, or use the *alternative* http resource and `server:` (see Option 3). |
 | Dashboard card blank, or the browser console mentions *mixed content* | You opened HA over https. Use `http://<HA-IP>:8123` on that screen, or use Option 2 (sidebar). |
 | *Airport Info* missing from the store (Method B) | `config.yaml` must be directly inside `addons/airport_info/`. Run **Check for updates**, then refresh. |
 | Log repeats `No module named 'airport_info'` and the add-on keeps restarting | You have version 0.2.0–0.2.2. Update to **0.2.3** or later: Add-on Store → ⋮ → Check for updates → Update. |
