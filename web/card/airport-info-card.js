@@ -22,7 +22,7 @@
 import { renderBoard, BOARD_CSS, tickClocks, autoScroll } from '../board.js';
 import { renderWeather, WEATHER_CSS, tickWeatherClock } from '../weather.js';
 
-const VERSION = '0.3.0';
+const VERSION = '0.3.1';
 
 class AirportInfoCard extends HTMLElement {
   setConfig(config) {

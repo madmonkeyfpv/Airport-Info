@@ -242,3 +242,13 @@ def test_traffic_only_in_blank_panels():
     assert out["dep_blank"]["arrivals"] == [] and len(out["dep_blank"]["departures"]) == 5
     assert out["neither_blank"] == {"arrivals": [], "departures": []}
     assert out["fa_unavailable"] == out["both_blank"]
+
+
+def test_traffic_radius_default_and_migration(tmp_path):
+    import json as _json
+    from airport_info.settings import Settings
+    assert Settings(tmp_path / "none.json").values["traffic_range_nm"] == 3
+    (tmp_path / "old.json").write_text(_json.dumps({"airport": "EGSU", "traffic_range_nm": 10}))
+    assert Settings(tmp_path / "old.json").values["traffic_range_nm"] == 3       # old default migrated
+    (tmp_path / "chosen.json").write_text(_json.dumps({"traffic_range_nm": 6}))
+    assert Settings(tmp_path / "chosen.json").values["traffic_range_nm"] == 6    # deliberate choice kept

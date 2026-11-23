@@ -96,7 +96,7 @@
         <label>Pinned areas <small>Comma separated, e.g. <code>D123, R105</code>. Blank = nearest automatically</small><input name="airspace_pinned"></label>
         <label>Navigation warning radius (NM) <small>Drones, parachuting, gliding, model flying…</small><input type="number" name="warning_range_nm" min="1" max="50"></label>
         <label class="check"><input type="checkbox" name="show_traffic"> Show live nearby traffic (ADS-B) in the arrivals panel</label>
-        <label>Traffic radius (NM) <small>Aircraft within this distance of the airfield</small><input type="number" name="traffic_range_nm" min="2" max="40"></label>
+        <label>Traffic radius (NM) <small>Aircraft within this distance of the airfield (default 3)</small><input type="number" name="traffic_range_nm" min="1" max="40"></label>
         <label>Traffic ceiling (ft above airfield) <small>Hides higher transit traffic and airliners</small><input type="number" name="traffic_max_ft_agl" min="500" max="10000" step="100"></label>
         <label class="check"><input type="checkbox" name="show_radio"> Show radio strip (frequencies &amp; ATIS)</label>
         <label>Published opening hours (UK local) <small>Used to estimate whether frequencies are open, e.g. <code>0900-1700</code> or <code>MON-FRI 0800-1800, SAT SUN 0900-1700</code>, seasonal <code>15MAR-15OCT 1000-1800; 16OCT-14MAR 1000-1600</code>, <code>H24</code>. Blank = built-in published hours where known (Duxford), otherwise NOTAMs only.</small><input name="service_hours" maxlength="120"></label>

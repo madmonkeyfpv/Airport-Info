@@ -26,13 +26,17 @@ DEFAULTS = {
     # Formats: "0900-1700", "MON-FRI 0800-1800, SAT SUN 0900-1700", "15MAR-15OCT 1000-1800; 16OCT-14MAR 1000-1600", "H24".
     "service_hours": "",
     "show_traffic": True,         # live nearby traffic (ADS-B via adsb.lol) in the arrivals panel
-    "traffic_range_nm": 10,       # how far from the airfield to show traffic
+    "traffic_range_nm": 3,        # how far from the airfield (NM) to show GA traffic (was 10 before add-on 0.3.1)
     "traffic_max_ft_agl": 3000,   # ignore aircraft higher than this above the airfield (transit / airliners)
     "view": "board",              # board | weather | rotate  (rotate alternates both)
     "rotate_seconds": 30,         # time on each page when view = rotate
 }
 
 TYPES = {k: type(v) for k, v in DEFAULTS.items()}
+
+# Old defaults that were changed later. The settings page saves EVERY value, so a stored value equal to the old
+# default almost certainly was never chosen deliberately: move it to the new default when loading.
+MIGRATE_OLD_DEFAULTS = {"traffic_range_nm": (10, 3)}  # 0.3.0 -> 0.3.1 (owner: reduce GA radius to 3)
 
 
 def coerce(key: str, value):
@@ -61,6 +65,9 @@ class Settings:
                 for k, v in stored.items():
                     if k in DEFAULTS:
                         self.values[k] = coerce(k, v)
+                for k, (old, new) in MIGRATE_OLD_DEFAULTS.items():
+                    if k in stored and self.values[k] == old:
+                        self.values[k] = new
             except (ValueError, KeyError, TypeError):
                 pass
 
